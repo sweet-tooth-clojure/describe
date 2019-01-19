@@ -2,50 +2,45 @@
   (:require [clojure.test :refer :all]
             [describe.core :as d]))
 
+(def name-not-empty
+  {:key :name-not-empty
+   :in  [empty? :name]
+   :out "name cannot be empty"})
+
+(def name-length
+  {:key :name-length
+   :pre [not :name-not-empty]
+   :in  [#(not (< 3 (count %) 11)) :name]
+   :out "name must be between 4 and 10 characters"})
+
+(def password-not-empty
+  {:key :password-not-empty
+   :in  [empty? :password]
+   :out "please supply a password"})
+
+(def passwords-match
+  {:key :passwords-match
+   :pre [not :password-not-empty]
+   :in  [not= :password :confirmation]
+   :out "password and confirmation must be the same"
+   :as  :password})
+
 (def describers
-  #{{:key         :name-not-empty
-     :input       [:name]
-     :when        empty
-     :output-data :x
-     :output-text "name cannot be empty"}
-
-    {:key    :name-length
-     :apply? [[:name-not-empty not]]
-     :input  [:name]
-     :when   #(3 < (count %) 10)
-     :output "name must be between 3 and 10 characters"}
-
-    {:key    :password-not-empty
-     :input  [:password]
-     :when   empty
-     :output "please supply a password"}
-
-    {:key    :passwords-match
-     :apply? [[:password-not-empty not]]
-     :input  [:password :confirmation]
-     :when   #(not= %1 %2)
-     :output "password and confirmation must be the same"
-     :on     [:password]}})
-
-(def blinding-flash
-  {:name         "Blinding Flash"
-   :subtypes     #{:light}
-   :casting-cost 7
-   :action       :slow
-   :range        [0 0]
-   :targets      #{:zone}
-   :school       [:holy 2]
-   :dice         2
-   :damage-type  :light
-   :effects      #{[:daze 4 9] [:stun 10 12]}
-   :traits       #{:ethereal :unavoidable [:nonliving 2]}
-   :description  "Attacks all objects in the zone except the caster"
-   :image        "MW1A01.jpg"})
+  #{name-not-empty name-length
+    password-not-empty passwords-match})
 
 (deftest describe-nothing
   (is (= {}
+         (d/describe {} #{}))))
+
+(deftest basic-describe
+  (is (= #{[:password "please supply a password"]
+           [:name "name cannot be empty"]}
          (d/describe {} describers))))
 
-(deftest describe-basic
-  (is (= 
-        (d/describe {} describers))))
+(deftest empty-description
+  (is (= #{}
+         (d/describe {:name         "birf"
+                      :password     "abc"
+                      :confirmation "abc"}
+                     describers))))
