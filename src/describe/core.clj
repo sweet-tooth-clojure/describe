@@ -44,7 +44,7 @@
 (defn describe 
   [x describers]
   (if (empty? describers)
-    {}
+    #{}
     (let [by-key (group-by :key describers)]
       (loop [desc-keys    (sort-describers describers)
              descriptions #{}

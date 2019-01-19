@@ -30,20 +30,18 @@
     password-not-empty passwords-match})
 
 (deftest describe-nothing
-  (is (= {}
-         (d/describe {} #{}))))
+  (is (= #{} (d/describe {} #{}))))
+
+(deftest no-descriptions-applied
+  (is (= #{} (d/describe {:name         "birf"
+                          :password     "abc"
+                          :confirmation "abc"}
+                         describers))))
 
 (deftest basic-describe
   (is (= #{[:password "please supply a password"]
            [:name "name cannot be empty"]}
          (d/describe {} describers))))
-
-(deftest no-descriptions-applied
-  (is (= #{}
-         (d/describe {:name         "birf"
-                      :password     "abc"
-                      :confirmation "abc"}
-                     describers))))
 
 (deftest conditional-description
   (is (= #{[:name "name must be between 4 and 10 characters"]
