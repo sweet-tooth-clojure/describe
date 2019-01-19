@@ -38,9 +38,17 @@
            [:name "name cannot be empty"]}
          (d/describe {} describers))))
 
-(deftest empty-description
+(deftest no-descriptions-applied
   (is (= #{}
          (d/describe {:name         "birf"
                       :password     "abc"
                       :confirmation "abc"}
+                     describers))))
+
+(deftest conditional-description
+  (is (= #{[:name "name must be between 4 and 10 characters"]
+           [:password "password and confirmation must be the same"]}
+         (d/describe {:name         "bir"
+                      :password     "abc"
+                      :confirmation "abcd"}
                      describers))))
