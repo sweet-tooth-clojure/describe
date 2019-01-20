@@ -13,6 +13,16 @@
    :in  [#(not (< 3 (count %) 11)) :name]
    :out "name must be between 4 and 10 characters"})
 
+(defn name-exists?
+  [name db]
+  (some (fn [x] (= name (:name x))) db))
+
+(def name-unique
+  {:key :name-unique
+   :pre [not :name-length]
+   :in  [name-exists? :name (d/context :db)]
+   :out "that name is taken"})
+
 (def password-not-empty
   {:key :password-not-empty
    :in  [empty? :password]
@@ -24,6 +34,11 @@
    :in  [not= :password :confirmation]
    :out "password and confirmation must be the same"
    :as  :password})
+
+(def password-complexity
+  {:key :password-complexity
+   :pre [not :password-not-empty]
+   :in  [#(re-find #"[^a-zA-Z\d\s:]") :password]})
 
 (def describers
   #{name-not-empty name-length
@@ -50,3 +65,16 @@
                       :password     "abc"
                       :confirmation "abcd"}
                      describers))))
+
+(deftest handles-context
+  (is (= #{[:name "that name is taken"]}
+         (d/describe {:name "birb"}
+                     #{name-not-empty name-length name-unique}
+                     {:db [{:name "birb"}]}))))
+
+(deftest handles-constants
+  (is (= #{[:name "name must be between 4 and 10 characters"]}
+         (d/describe {:name "bir"}
+                     #{{:key :_
+                        :in  [#(not (<= %2 (count %1) %3)) :name 4 10]
+                        :out "name must be between 4 and 10 characters"}}))))
