@@ -30,16 +30,18 @@
   describer maps as nodes instead of attempting to treat them as maps
   describing nodes and edges"
   [node-defs]
-  ;; TODO update to provide more informative group by: group by describer / describer-graph
-  (let [grouped (group-by #(= :describer (first (s/conform ::describer-node-def %))) node-defs)]
+  (let [{:keys [describers describers-and-edges]} (group-by #(if (= :describer (first (s/conform ::describer-node-def %)))
+                                                               :describers
+                                                               :describers-and-edges)
+                                                            node-defs)]
     (apply lg/add-nodes
            (apply lg/digraph (reduce (fn [all-nodes node-data]
                                        (if (or (map? node-data) (not (seqable? node-data)))
                                          (conj all-nodes node-data)
                                          (into all-nodes (partition 2 1 node-data))))
                                      []
-                                     (get grouped false)))
-           (get grouped true))))
+                                     describers-and-edges))
+           describers)))
 
 (defn resolve-args
   [ctx args]
