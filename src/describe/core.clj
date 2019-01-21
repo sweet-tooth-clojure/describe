@@ -2,6 +2,7 @@
   (:require [loom.graph :as lg]
             [loom.alg :as la]
             [loom.attr :as lat]
+            [loom.derived :as ld]
             [clojure.spec.alpha :as s]))
 
 (s/def ::pred ifn?)
@@ -49,9 +50,10 @@
           []
           args))
 
-(defn apply-pred
-  [ctx pred args]
-  (apply pred (resolve-args ctx args)))
+(defn describer-applies?
+  [ctx describer-graph describer]
+  (let [{:keys [pred args]} describer]
+    (apply pred (resolve-args ctx args))))
 
 (defn convert-describers
   [describers]
@@ -61,22 +63,16 @@
       (throw (AssertionError. "when describers is a graph, it must be a digraph")))
     (graph describers)))
 
-(defn describer-applies?
-  [ctx describer-graph describer]
-
-  ;; all predecessors applied
-  ;; predicate passes
-  (let [any-predecessors-applied? (->> (lg/predecessors describer-graph describer)
-                                       (map #(lat/attr describer-graph % :applied?))
-                                       (some identity))]
-    (and (not any-predecessors-applied?)
-         (let [{:keys [pred args]} describer]
-           (apply-pred ctx pred args)))))
-
 (defn add-description
   [descriptions ctx describer]
   (let [{:keys [dscr args as]} describer]
     (conj descriptions [(or as (first args)) dscr])))
+
+(defn remove-describer-subgraph
+  [describer-graph describer]
+  (->> (ld/subgraph-reachable-from describer-graph describer)
+       lg/nodes
+       (apply lg/remove-nodes describer-graph)))
 
 (defn describe
   [x describers & [additional-ctx]]
@@ -86,10 +82,13 @@
            remaining       (la/topsort describer-graph)]
       (if (empty? remaining)
         descriptions
-        (let [describer (first remaining)
-              applies?  (describer-applies? ctx describer-graph describer)]
-          (recur (lat/add-attr describer-graph describer :applied? applies?)
+        (let [describer               (first remaining)
+              applies?                (describer-applies? ctx describer-graph describer)
+              updated-describer-graph (cond-> (lat/add-attr describer-graph describer :applied? applies?)
+                                        applies? (remove-describer-subgraph describer))]
+          (recur updated-describer-graph
                  (if applies?
                    (add-description descriptions ctx describer)
                    descriptions)
-                 (rest remaining)))))))
+                 (->> (rest remaining)
+                      (filter (set (lg/nodes updated-describer-graph))))))))))
