@@ -1,6 +1,21 @@
 (ns describe.core
   (:require [loom.graph :as lg]
-            [loom.alg :as la]))
+            [loom.alg :as la]
+            [loom.attr :as lat]
+            [clojure.spec.alpha :as s]))
+
+(s/def ::pred ifn?)
+(s/def ::args seqable?)
+(s/def ::dscr any?)
+
+(s/def ::describer (s/keys :req-un [::pred ::args ::dscr]))
+(s/def ::describer-coll (s/coll-of ::describer))
+(s/def ::describer-map (s/map-of ::describer ::describer-coll))
+
+(s/def ::describer-node-def (s/or :describer ::describer
+                                  :describer-coll ::describer-coll
+                                  :describer-map ::describer-map))
+(s/def ::describer-nodes (s/coll-of ::describer-node))
 
 (defn context
   [cfn]
@@ -8,61 +23,73 @@
   (let [context-fn (if (fn? cfn) cfn #(cfn %))]
     (with-meta context-fn {::ctx true})))
 
-(defn map-deps
-  [describers]
-  (->> describers
-       (map (juxt :key (comp vec rest :pre)))
-       (filter (comp seq second))
-       (into {})))
+(defn graph
+  "Allows slightly more compact syntax for defining graphs by treating a
+  vector of [:a :b :c] as pairs [:a :b] [:b :c] and by treating
+  describer maps as nodes instead of attempting to treat them as maps
+  describing nodes and edges"
+  [node-defs]
+  ;; TODO update to provide more informative group by: group by describer / describer-graph
+  (let [grouped (group-by #(= :describer (first (s/conform ::describer-node-def %))) node-defs)]
+    (apply lg/add-nodes
+           (apply lg/digraph (reduce (fn [all-nodes node-data]
+                                       (if (or (map? node-data) (not (seqable? node-data)))
+                                         (conj all-nodes node-data)
+                                         (into all-nodes (partition 2 1 node-data))))
+                                     []
+                                     (get grouped false)))
+           (get grouped true))))
 
-(defn sort-describers
-  [describers]
-  (let [dep-map (map-deps describers)]
-    (if (empty? dep-map)
-      (map :key describers)
-      (->> dep-map
-           (lg/digraph)
-           (la/topsort)
-           (reverse)))))
-
-(defn extract-args
-  [ctx ks]
-  (reduce (fn [args k]
-            (conj args (cond (::ctx (meta k)) (k ctx)
-                             (ifn? k)         (k (::subject ctx))
-                             :else            k)))
+(defn resolve-args
+  [ctx args]
+  (reduce (fn [resolved arg]
+            (conj resolved (cond (::ctx (meta arg)) (arg ctx)
+                                 (ifn? arg)         (arg (::subject ctx))
+                                 :else              arg)))
           []
-          ks))
+          args))
 
-(defn apply-fn-vec
-  [ctx fn-vec]
-  (let [[f & ks] fn-vec]
-    (apply f (extract-args ctx ks))))
+(defn apply-pred
+  [ctx pred args]
+  (apply pred (resolve-args ctx args)))
 
-(defn apply-describer
-  [ctx descriptions in-results {:keys [pre in out as]}]
-  (if-not (or (not pre)
-              (apply-fn-vec {::subject in-results} pre))
-    {:result       nil
-     :descriptions descriptions}
+(defn convert-describers
+  [describers]
+  (if (lg/graph? describers)
+    (if (lg/directed? describers)
+      describers
+      (throw (AssertionError. "when describers is a graph, it must be a digraph")))
+    (graph describers)))
 
-    (let [result (apply-fn-vec ctx in)]
-      {:result       result
-       :descriptions (if-not result
-                       descriptions
-                       (conj descriptions [(or as (second in)) out]))})))
+(defn describer-applies?
+  [ctx describer-graph describer]
 
-(defn describe 
+  ;; all predecessors applied
+  ;; predicate passes
+  (let [any-predecessors-applied? (->> (lg/predecessors describer-graph describer)
+                                       (map #(lat/attr describer-graph % :applied?))
+                                       (some identity))]
+    (and (not any-predecessors-applied?)
+         (let [{:keys [pred args]} describer]
+           (apply-pred ctx pred args)))))
+
+(defn add-description
+  [descriptions ctx describer]
+  (let [{:keys [dscr args as]} describer]
+    (conj descriptions [(or as (first args)) dscr])))
+
+(defn describe
   [x describers & [additional-ctx]]
-  (let [by-key (group-by :key describers)
-        ctx    (merge additional-ctx {::subject x})]
-    (loop [desc-keys    (sort-describers describers)
-           descriptions #{}
-           in-results   {}]
-      (if-not (seq desc-keys)
+  (let [ctx (merge additional-ctx {::subject x})]
+    (loop [describer-graph (convert-describers describers)
+           descriptions    #{}
+           remaining       (la/topsort describer-graph)]
+      (if (empty? remaining)
         descriptions
-        (let [desc-key                      (first desc-keys)
-              {:keys [result descriptions]} (apply-describer ctx descriptions in-results (first (desc-key by-key)))]
-          (recur (rest desc-keys)
-                 descriptions
-                 (assoc in-results desc-key result)))))))
+        (let [describer (first remaining)
+              applies?  (describer-applies? ctx describer-graph describer)]
+          (recur (lat/add-attr describer-graph describer :applied? applies?)
+                 (if applies?
+                   (add-description descriptions ctx describer)
+                   descriptions)
+                 (rest remaining)))))))
