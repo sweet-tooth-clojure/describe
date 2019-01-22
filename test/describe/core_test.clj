@@ -48,8 +48,6 @@
       [nne name-length name-unique]
       [nne name-alnum name-unique]}))
 
-
-
 (deftest creates-graph
   (let [a name-required
         b name-length
@@ -66,13 +64,13 @@
                       {a [f g]}})))))
 
 (deftest describe-nothing
-  (is (= #{} (d/describe {} #{}))))
+  (is (nil? (d/describe {} #{}))))
 
 (deftest no-descriptions-applied
-  (is (= #{} (d/describe {:name         "birf"
-                          :password     "abc"
-                          :confirmation "abc"}
-                         describers))))
+  (is (nil? (d/describe {:name         "birf"
+                         :password     "abc"
+                         :confirmation "abc"}
+                        describers))))
 
 (deftest basic-describe
   (is (= #{[:password "please supply a password"]
@@ -99,3 +97,43 @@
                      [{:pred #(not (<= %2 (count %1) %3))
                        :args [:name 4 10]
                        :dscr "must be between 4 and 10 characters"}]))))
+
+;; nested maps and seqs
+(def street-required
+  {:pred empty?
+   :args [:street]
+   :dscr "cannot be empty"})
+
+(def city-required
+  {:pred empty?
+   :args [:city]
+   :dscr "cannot be empty"})
+
+(def address-describer
+  {:pred #(d/describe % [street-required city-required])
+   :args [:address]})
+
+(def address-description
+  #{[:address #{[:street "cannot be empty"] [:city "cannot be empty"]}]})
+
+(deftest handle-nested-map
+  (is (= address-description
+         (d/describe {} [address-describer]))))
+
+(deftest handle-undescribed-nested-map
+  (is (nil? (d/describe {:address {:street "x" :city   "y"}}
+                        [address-describer]))))
+
+(deftest handle-seq
+  (is (= [address-description nil address-description]
+         (d/describe-seq [{} {:address {:street "x" :city   "y"}} {}]
+                         [address-describer]))))
+
+(def addresses-describer
+  {:pred #(d/describe-seq % [address-describer])
+   :args [:addresses]})
+
+(deftest handle-nested-seq
+  (is (= #{[:addresses [address-description nil address-description]]}
+         (d/describe {:addresses [{} {:address {:street "x" :city   "y"}} {}]}
+                     [addresses-describer]))))

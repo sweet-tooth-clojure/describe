@@ -3,13 +3,15 @@
             [loom.alg :as la]
             [loom.attr :as lat]
             [loom.derived :as ld]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [describe.core :as d]))
 
 (s/def ::pred ifn?)
 (s/def ::args seqable?)
 (s/def ::dscr any?)
 
-(s/def ::describer (s/keys :req-un [::pred ::args ::dscr]))
+(s/def ::describer (s/keys :req-un [::pred ::args]
+                           :opt-un [::dscr]))
 (s/def ::describer-coll (s/coll-of ::describer))
 (s/def ::describer-map (s/map-of ::describer ::describer-coll))
 
@@ -66,9 +68,11 @@
     (graph describers)))
 
 (defn add-description
-  [descriptions ctx describer]
-  (let [{:keys [dscr args as]} describer]
-    (conj descriptions [(or as (first args)) dscr])))
+  [descriptions describer result]
+  (let [{:keys [dscr args as]
+         :or   {dscr identity}} describer
+        description (if (fn? dscr) (dscr result) dscr)]
+    (conj descriptions [(or as (first args)) description])))
 
 (defn remove-describer-subgraph
   [describer-graph describer]
@@ -83,14 +87,23 @@
            descriptions    #{}
            remaining       (la/topsort describer-graph)]
       (if (empty? remaining)
-        descriptions
+        (if (empty? descriptions)
+          nil
+          descriptions)
         (let [describer               (first remaining)
               applies?                (describer-applies? ctx describer-graph describer)
               updated-describer-graph (cond-> (lat/add-attr describer-graph describer :applied? applies?)
                                         applies? (remove-describer-subgraph describer))]
           (recur updated-describer-graph
                  (if applies?
-                   (add-description descriptions ctx describer)
+                   (add-description descriptions describer applies?)
                    descriptions)
                  (->> (rest remaining)
                       (filter (set (lg/nodes updated-describer-graph))))))))))
+
+
+(defn describe-seq
+  [xs describers & [additional-ctx]]
+  (let [descriptions (map #(apply describe % describers additional-ctx) xs)]
+    (when (some identity descriptions)
+      descriptions)))
