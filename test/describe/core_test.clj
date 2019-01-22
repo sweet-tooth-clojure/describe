@@ -109,9 +109,12 @@
    :args [:city]
    :dscr "cannot be empty"})
 
+#_(def address-describer
+    {:pred #(d/describe % [street-required city-required])
+     :args [:address]})
+
 (def address-describer
-  {:pred #(d/describe % [street-required city-required])
-   :args [:address]})
+  (d/map-describer :address [street-required city-required]))
 
 (def address-description
   #{[:address #{[:street "cannot be empty"] [:city "cannot be empty"]}]})
@@ -121,13 +124,31 @@
          (d/describe {} [address-describer]))))
 
 (deftest handle-undescribed-nested-map
-  (is (nil? (d/describe {:address {:street "x" :city   "y"}}
+  (is (nil? (d/describe {:address {:street "x" :city "y"}}
                         [address-describer]))))
 
 (deftest handle-seq
   (is (= [address-description nil address-description]
-         (d/describe-seq [{} {:address {:street "x" :city   "y"}} {}]
+         (d/describe-seq [{} {:address {:street "x" :city "y"}} {}]
                          [address-describer]))))
+
+(deftest handle-scalar-seq
+  (is (= [nil nil #{[identity true]}]
+         (d/describe-seq [-1 0 1]
+                         [{:pred pos-int?}]))))
+
+(def city-doesnt-exist?
+  {:pred (fn [city db] (not (some #(= % city) db)))
+   :args [:city (d/context :db)]})
+
+(def address-city-describer
+  (d/map-describer :address [city-doesnt-exist?]))
+
+(deftest map-describers-pass-context
+  (is (= #{[:address #{[:city true]}]}
+         (d/describe {:address {:street "x" :city "y"}}
+                     [address-city-describer]
+                     {:db ["y"]}))))
 
 (def addresses-describer
   {:pred #(d/describe-seq % [address-describer])
@@ -135,5 +156,5 @@
 
 (deftest handle-nested-seq
   (is (= #{[:addresses [address-description nil address-description]]}
-         (d/describe {:addresses [{} {:address {:street "x" :city   "y"}} {}]}
+         (d/describe {:addresses [{} {:address {:street "x" :city "y"}} {}]}
                      [addresses-describer]))))

@@ -10,8 +10,8 @@
 (s/def ::args seqable?)
 (s/def ::dscr any?)
 
-(s/def ::describer (s/keys :req-un [::pred ::args]
-                           :opt-un [::dscr]))
+(s/def ::describer (s/keys :req-un [::pred]
+                           :opt-un [::args ::dscr]))
 (s/def ::describer-coll (s/coll-of ::describer))
 (s/def ::describer-map (s/map-of ::describer ::describer-coll))
 
@@ -56,7 +56,8 @@
 
 (defn describer-applies?
   [ctx describer-graph describer]
-  (let [{:keys [pred args]} describer]
+  (let [{:keys [pred args]
+         :or   {args [identity]}} describer]
     (apply pred (resolve-args ctx args))))
 
 (defn convert-describers
@@ -70,7 +71,8 @@
 (defn add-description
   [descriptions describer result]
   (let [{:keys [dscr args as]
-         :or   {dscr identity}} describer
+         :or   {dscr identity
+                args [identity]}} describer
         description (if (fn? dscr) (dscr result) dscr)]
     (conj descriptions [(or as (first args)) description])))
 
@@ -107,3 +109,10 @@
   (let [descriptions (map #(apply describe % describers additional-ctx) xs)]
     (when (some identity descriptions)
       descriptions)))
+
+(defn map-describer
+  [key-fn describers]
+  {:pred (fn [key-val ctx]
+           (println "pred" key-val describers)
+           (d/describe key-val describers ctx))
+   :args [key-fn identity]})
