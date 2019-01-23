@@ -113,3 +113,11 @@
   [key-fn describers]
   {:pred (fn [key-val ctx] (d/describe key-val describers ctx))
    :args [key-fn identity]})
+
+(defn path-describer
+  [key-fns describers]
+  (let [key-fns (reverse key-fns)]
+    (reduce (fn [describer key-fn]
+              (d/key-describer key-fn [describer]))
+            (d/key-describer (first key-fns) describers)
+            (rest key-fns))))

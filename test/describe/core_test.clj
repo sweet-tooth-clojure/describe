@@ -162,4 +162,6 @@
                #{[:city "cannot be empty"]
                  [:street "cannot be empty"]}]}]}
          (d/describe {:person {:address {}}}
-                     [(d/key-describer :person [address-describer])]))))
+                     [(d/key-describer :person [address-describer])])
+         (d/describe {:person {:address {}}}
+                     [(d/path-describer [:person :address] [street-required city-required])]))))
