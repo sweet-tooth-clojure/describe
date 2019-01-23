@@ -103,16 +103,13 @@
                  (->> (rest remaining)
                       (filter (set (lg/nodes updated-describer-graph))))))))))
 
-
-(defn describe-seq
+(defn map-describe
   [xs describers & [additional-ctx]]
   (let [descriptions (map #(apply describe % describers additional-ctx) xs)]
     (when (some identity descriptions)
       descriptions)))
 
-(defn map-describer
+(defn key-describer
   [key-fn describers]
-  {:pred (fn [key-val ctx]
-           (println "pred" key-val describers)
-           (d/describe key-val describers ctx))
+  {:pred (fn [key-val ctx] (d/describe key-val describers ctx))
    :args [key-fn identity]})

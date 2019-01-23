@@ -109,32 +109,29 @@
    :args [:city]
    :dscr "cannot be empty"})
 
-#_(def address-describer
-    {:pred #(d/describe % [street-required city-required])
-     :args [:address]})
-
 (def address-describer
-  (d/map-describer :address [street-required city-required]))
+  (d/key-describer :address [street-required city-required]))
 
 (def address-description
   #{[:address #{[:street "cannot be empty"] [:city "cannot be empty"]}]})
+
+(def address {:address {:street "x" :city "y"}})
 
 (deftest handle-nested-map
   (is (= address-description
          (d/describe {} [address-describer]))))
 
 (deftest handle-undescribed-nested-map
-  (is (nil? (d/describe {:address {:street "x" :city "y"}}
-                        [address-describer]))))
+  (is (nil? (d/describe address [address-describer]))))
 
 (deftest handle-seq
   (is (= [address-description nil address-description]
-         (d/describe-seq [{} {:address {:street "x" :city "y"}} {}]
+         (d/map-describe [{} address {}]
                          [address-describer]))))
 
 (deftest handle-scalar-seq
   (is (= [nil nil #{[identity true]}]
-         (d/describe-seq [-1 0 1]
+         (d/map-describe [-1 0 1]
                          [{:pred pos-int?}]))))
 
 (def city-doesnt-exist?
@@ -142,19 +139,27 @@
    :args [:city (d/context :db)]})
 
 (def address-city-describer
-  (d/map-describer :address [city-doesnt-exist?]))
+  (d/key-describer :address [city-doesnt-exist?]))
 
-(deftest map-describers-pass-context
+(deftest key-describers-pass-context
   (is (= #{[:address #{[:city true]}]}
-         (d/describe {:address {:street "x" :city "y"}}
+         (d/describe address
                      [address-city-describer]
                      {:db ["y"]}))))
 
 (def addresses-describer
-  {:pred #(d/describe-seq % [address-describer])
+  {:pred #(d/map-describe % [address-describer])
    :args [:addresses]})
 
 (deftest handle-nested-seq
   (is (= #{[:addresses [address-description nil address-description]]}
-         (d/describe {:addresses [{} {:address {:street "x" :city "y"}} {}]}
+         (d/describe {:addresses [{} address {}]}
                      [addresses-describer]))))
+
+(deftest handle-nested-map
+  (is (= #{[:person
+            #{[:address
+               #{[:city "cannot be empty"]
+                 [:street "cannot be empty"]}]}]}
+         (d/describe {:person {:address {}}}
+                     [(d/key-describer :person [address-describer])]))))
