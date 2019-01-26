@@ -4,7 +4,9 @@
             [loom.attr :as lat]
             [loom.derived :as ld]
             [clojure.spec.alpha :as s]
-            [describe.core :as d]))
+            [describe.core :as d]
+            [clojure.walk :as walk])
+  (:refer-clojure :exclude [empty? not=]))
 
 (s/def ::pred ifn?)
 (s/def ::args seqable?)
@@ -21,6 +23,7 @@
 (s/def ::describer-nodes (s/coll-of ::describer-node))
 
 (defn context
+  "Used in describers to access the context passed in to describe."
   [cfn]
   {:pre [(ifn? cfn)]}
   (let [context-fn (if (fn? cfn) cfn #(cfn %))]
@@ -46,21 +49,31 @@
            describers)))
 
 (defn resolve-args
+  "Describer args come in four flavors:
+  * A function wrapped with `context`. This resolves by applying
+    the fn to the context.
+  * An ifn with the `:const` keyword in metadata. This resolves to itself.
+  * An ifn. This resolves by being applied to the subject (the thing being described).
+  * Something else. This resolves to itself."
   [ctx args]
   (reduce (fn [resolved arg]
-            (conj resolved (cond (::ctx (meta arg)) (arg ctx)
-                                 (ifn? arg)         (arg (::subject ctx))
-                                 :else              arg)))
+            (let [arg-meta (meta arg)]
+              (conj resolved (cond (::ctx arg-meta)  (arg ctx)
+                                   (:const arg-meta) arg
+                                   (ifn? arg)        (arg (::subject ctx))
+                                   :else             arg))))
           []
           args))
 
 (defn describer-applies?
+  "Apply the predicate function to args."
   [ctx describer-graph describer]
   (let [{:keys [pred args]
          :or   {args [identity]}} describer]
     (apply pred (resolve-args ctx args))))
 
-(defn convert-describers
+(defn describers->graph
+  "Convert data structure describing graph to an actual graph."
   [describers]
   (if (lg/graph? describers)
     (if (lg/directed? describers)
@@ -69,6 +82,8 @@
     (graph describers)))
 
 (defn add-description
+  "If dscr is a function apply it to result of pred function
+  Otherwise return dscr"
   [descriptions describer result]
   (let [{:keys [dscr args as]
          :or   {dscr identity
@@ -77,6 +92,8 @@
     (conj descriptions [(or as (first args)) description])))
 
 (defn remove-describer-subgraph
+  "Remove all downstream subscribers so that we don't attempt to apply
+  them"
   [describer-graph describer]
   (->> (ld/subgraph-reachable-from describer-graph describer)
        lg/nodes
@@ -85,11 +102,11 @@
 (defn describe
   [x describers & [additional-ctx]]
   (let [ctx (merge additional-ctx {::subject x})]
-    (loop [describer-graph (convert-describers describers)
+    (loop [describer-graph (describers->graph describers)
            descriptions    #{}
            remaining       (la/topsort describer-graph)]
-      (if (empty? remaining)
-        (if (empty? descriptions)
+      (if (clojure.core/empty? remaining)
+        (if (clojure.core/empty? descriptions)
           nil
           descriptions)
         (let [describer               (first remaining)
@@ -104,20 +121,81 @@
                       (filter (set (lg/nodes updated-describer-graph))))))))))
 
 (defn map-describe
-  [xs describers & [additional-ctx]]
-  (let [descriptions (map #(apply describe % describers additional-ctx) xs)]
-    (when (some identity descriptions)
-      descriptions)))
+  "Apply describers to xs; return nil if all descriptions nil"
+  ([describers xs]
+   (map-describe describers nil xs))
+  ([describers additional-ctx xs]
+   (let [descriptions (map #(apply describe % describers additional-ctx) xs)]
+     (when (some identity descriptions)
+       descriptions))))
 
+;; Describer helpers
+
+;; TODO come up with better name than this - needs to convey that it
+;; uses a keyed value as the new "subject"
 (defn key-describer
+  "Apply describers to the value of a map's key"
   [key-fn describers]
   {:pred (fn [key-val ctx] (d/describe key-val describers ctx))
    :args [key-fn identity]})
 
 (defn path-describer
+  "Nested key describers"
   [key-fns describers]
   (let [key-fns (reverse key-fns)]
     (reduce (fn [describer key-fn]
               (d/key-describer key-fn [describer]))
             (d/key-describer (first key-fns) describers)
             (rest key-fns))))
+
+
+;; built-in describers
+(defn empty?
+  [arg]
+  {:pred clojure.core/empty?
+   :args [arg]
+   :dscr [::empty]})
+
+(defn not=
+  [arg compare-to]
+  {:pred clojure.core/not=
+   :args [arg compare-to]
+   :dscr [::not= compare-to]})
+
+(defn matches?
+  [arg regex]
+  {:pred (partial re-find regex)
+   :args [arg]
+   :dscr [::matches regex]})
+
+(defn doesnt-match?
+  [arg regex]
+  {:pred (complement (partial re-find regex))
+   :args [arg]
+   :dscr [::doesnt-match]})
+
+(defn length-not-in
+  [arg m n]
+  {:pred #(not (< m % n))
+   :args [arg]
+   :dscr [::length-not-in m n]})
+
+(def built-in-describers
+  #{`empty? `not= `matches? `doesnt-match? `length-not-in})
+
+(defmacro with-key
+  [key & describers]
+  (let namespace)
+  (into #{} (walk/postwalk
+              (fn [form]
+                (if (ns-resolve )
+                  (list form key)
+                  form))
+              describers)))
+
+(walk/postwalk
+  (fn [x]
+    (if (= x :x)
+      (list x :y)
+      x))
+  '[:x (:x 6 128) :x])

@@ -63,6 +63,29 @@
                       e
                       {a [f g]}})))))
 
+(d/describe
+  {:name "hot!"
+   :password "abc"
+   :confirmation "ab"}
+  #{(d/with-key :password
+      {required [(d/equal [:confirmation])
+                 (d/matches #"[^a-zA-Z\d\s:]")]})
+    (d/with-key :name
+      [d/required (d/length-in 6 128) d/unique]
+      [d/required d/alnum d/unique])})
+
+(d/describe
+  {:name "hot!"
+   :password "abc"
+   :confirmation "ab"}
+  #{(d/with-key :password
+      {d/required [(d/equal [:confirmation])
+                   (d/matches #"[^a-zA-Z\d\s:]")]})
+    
+    (d/with-key :name
+      [d/required (d/length-in 6 128) d/unique]
+      [d/required d/alnum d/unique])})
+
 (deftest describe-nothing
   (is (nil? (d/describe {} #{}))))
 
@@ -126,13 +149,13 @@
 
 (deftest handle-seq
   (is (= [address-description nil address-description]
-         (d/map-describe [{} address {}]
-                         [address-describer]))))
+         (d/map-describe [address-describer]
+                         [{} address {}]))))
 
 (deftest handle-scalar-seq
   (is (= [nil nil #{[identity true]}]
-         (d/map-describe [-1 0 1]
-                         [{:pred pos-int?}]))))
+         (d/map-describe [{:pred pos-int?}]
+                         [-1 0 1]))))
 
 (def city-doesnt-exist?
   {:pred (fn [city db] (not (some #(= % city) db)))
@@ -148,7 +171,7 @@
                      {:db ["y"]}))))
 
 (def addresses-describer
-  {:pred #(d/map-describe % [address-describer])
+  {:pred #(d/map-describe [address-describer] %)
    :args [:addresses]})
 
 (deftest handle-nested-seq
