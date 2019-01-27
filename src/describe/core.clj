@@ -6,7 +6,7 @@
             [clojure.spec.alpha :as s]
             [describe.core :as d]
             [clojure.walk :as walk])
-  (:refer-clojure :exclude [empty? not=]))
+  (:refer-clojure :exclude [empty not=]))
 
 (s/def ::pred ifn?)
 (s/def ::args seqable?)
@@ -99,14 +99,17 @@
        lg/nodes
        (apply lg/remove-nodes describer-graph)))
 
+;; -----------------
+;; Perform description
+;; -----------------
 (defn describe
   [x describers & [additional-ctx]]
   (let [ctx (merge additional-ctx {::subject x})]
     (loop [describer-graph (describers->graph describers)
            descriptions    #{}
            remaining       (la/topsort describer-graph)]
-      (if (clojure.core/empty? remaining)
-        (if (clojure.core/empty? descriptions)
+      (if (empty? remaining)
+        (if (empty? descriptions)
           nil
           descriptions)
         (let [describer               (first remaining)
@@ -120,6 +123,8 @@
                  (->> (rest remaining)
                       (filter (set (lg/nodes updated-describer-graph))))))))))
 
+;; More complex describing and describers
+
 (defn map-describe
   "Apply describers to xs; return nil if all descriptions nil"
   ([describers xs]
@@ -129,12 +134,12 @@
      (when (some identity descriptions)
        descriptions))))
 
+;; -----------------
 ;; Describer helpers
+;; -----------------
 
-;; TODO come up with better name than this - needs to convey that it
-;; uses a keyed value as the new "subject"
 (defn key-describer
-  "Apply describers to the value of a map's key"
+  "Treats value returned by key-fn as new context that you're applying describers to"
   [key-fn describers]
   {:pred (fn [key-val ctx] (d/describe key-val describers ctx))
    :args [key-fn identity]})
@@ -150,52 +155,58 @@
 
 
 ;; built-in describers
-(defn empty?
+(defn empty
   [arg]
   {:pred clojure.core/empty?
    :args [arg]
    :dscr [::empty]})
 
 (defn not=
-  [arg compare-to]
-  {:pred clojure.core/not=
-   :args [arg compare-to]
-   :dscr [::not= compare-to]})
+  ([compare-to]
+   (fn [arg] (not= arg compare-to)))
+  ([arg compare-to]
+   {:pred clojure.core/not=
+    :args [arg compare-to]
+    :dscr [::not= compare-to]}))
 
-(defn matches?
-  [arg regex]
-  {:pred (partial re-find regex)
-   :args [arg]
-   :dscr [::matches regex]})
+(defn matches
+  ([regex]
+   (fn [arg] (matches arg regex)))
+  ([arg regex]
+   {:pred (partial re-find regex)
+    :args [arg]
+    :dscr [::matches regex]}))
 
-(defn doesnt-match?
-  [arg regex]
-  {:pred (complement (partial re-find regex))
-   :args [arg]
-   :dscr [::doesnt-match]})
+(defn not-alnum
+  [arg]
+  (-> (matches arg #"^[a-zA-Z\d]$")
+      (assoc :dscr [::not-alnum])))
+
+(defn does-not-match
+  ([regex] (fn [arg] (does-not-match arg regex)))
+  ([arg regex]
+   {:pred (complement (partial re-find regex))
+    :args [arg]
+    :dscr [::does-not-match regex]}))
 
 (defn length-not-in
-  [arg m n]
-  {:pred #(not (< m % n))
-   :args [arg]
-   :dscr [::length-not-in m n]})
+  ([m n] (fn [arg] (length-not-in arg m n)))
+  ([arg m n]
+   {:pred #(not (< m % n))
+    :args [arg]
+    :dscr [::length-not-in m n]}))
 
-(def built-in-describers
-  #{`empty? `not= `matches? `doesnt-match? `length-not-in})
+(defn spec-explain-data
+  ([spec] (fn [arg] (spec-explain-data arg spec)))
+  ([arg spec]
+   {:pred (partial s/explain-data spec)
+    :args [arg]
+    :dscr (fn [explanation]
+            [::spec-explain-data spec explanation])}))
 
-(defmacro with-key
-  [key & describers]
-  (let namespace)
-  (into #{} (walk/postwalk
-              (fn [form]
-                (if (ns-resolve )
-                  (list form key)
-                  form))
-              describers)))
-
-(walk/postwalk
-  (fn [x]
-    (if (= x :x)
-      (list x :y)
-      x))
-  '[:x (:x 6 128) :x])
+(defn spec-not-valid
+  ([spec] (fn [arg] (spec-not-valid arg spec)))
+  ([arg spec]
+   {:pred (complement (partial s/valid? spec))
+    :args [arg]
+    :dscr [::spec-not-valid spec]}))

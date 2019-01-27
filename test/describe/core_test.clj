@@ -1,7 +1,8 @@
 (ns describe.core-test
   (:require [clojure.test :refer :all]
             [describe.core :as d]
-            [loom.graph :as lg]))
+            [loom.graph :as lg]
+            [clojure.spec.alpha :as s]))
 
 (def name-required
   {:pred empty?
@@ -62,29 +63,6 @@
                       [c f g]
                       e
                       {a [f g]}})))))
-
-(d/describe
-  {:name "hot!"
-   :password "abc"
-   :confirmation "ab"}
-  #{(d/with-key :password
-      {required [(d/equal [:confirmation])
-                 (d/matches #"[^a-zA-Z\d\s:]")]})
-    (d/with-key :name
-      [d/required (d/length-in 6 128) d/unique]
-      [d/required d/alnum d/unique])})
-
-(d/describe
-  {:name "hot!"
-   :password "abc"
-   :confirmation "ab"}
-  #{(d/with-key :password
-      {d/required [(d/equal [:confirmation])
-                   (d/matches #"[^a-zA-Z\d\s:]")]})
-    
-    (d/with-key :name
-      [d/required (d/length-in 6 128) d/unique]
-      [d/required d/alnum d/unique])})
 
 (deftest describe-nothing
   (is (nil? (d/describe {} #{}))))
@@ -188,3 +166,40 @@
                      [(d/key-describer :person [address-describer])])
          (d/describe {:person {:address {}}}
                      [(d/path-describer [:person :address] [street-required city-required])]))))
+
+;; -----------------
+;; built in describers
+;; -----------------
+
+(deftest empty-describer
+  (is (= #{[:name [::d/empty]]}
+         (d/describe {} #{(d/empty :name)}))))
+
+(deftest not=-describer
+  (is (= #{[:password [::d/not= :confirmation]]}
+         (d/describe {:password "x" :confirmation "y"}
+                     #{(d/not= :password :confirmation)}))))
+
+(deftest matches-describer
+  (let [regex #"bib"]
+    (is (= #{[:name [::d/matches regex]]}
+           (d/describe {:name "bibbitt"}
+                       #{(d/matches :name regex)})))))
+
+(deftest does-not-match-describer
+  (let [regex #"[0-9]"]
+    (is (= #{[:name [::d/does-not-match regex]]}
+           (d/describe {:name "bibbitt"}
+                       #{(d/does-not-match :name regex)})))))
+
+(deftest spec-explain-data-describer
+  (let [spec pos-int?]
+    (is (= [:count [::d/spec-explain-data spec {::s/problems
+                                                [{:path [],
+                                                  :pred 'clojure.core/pos-int?,
+                                                  :val 0,
+                                                  :via [],
+                                                  :in []}],
+                                                ::s/spec spec,
+                                                ::s/value 0}]]
+           (first (d/describe {:count 0} #{(d/spec-explain-data :count spec)}))))))
