@@ -189,12 +189,19 @@
     :args [arg]
     :dscr [::does-not-match regex]}))
 
-(defn length-not-in
-  ([m n] (fn [arg] (length-not-in arg m n)))
+(defn not-in-range
+  ([m n] (fn [arg] (not-in-range arg m n)))
   ([arg m n]
    {:pred #(not (< m % n))
     :args [arg]
-    :dscr [::length-not-in m n]}))
+    :dscr [::not-in-range m n]}))
+
+(defn count-not-in-range
+  ([m n] (fn [arg] (count-not-in-range arg m n)))
+  ([arg m n]
+   {:pred #(not (< m (count %) n))
+    :args [arg]
+    :dscr [::count-not-in-range m n]}))
 
 (defn spec-explain-data
   ([spec] (fn [arg] (spec-explain-data arg spec)))
