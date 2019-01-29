@@ -4,8 +4,8 @@
             [loom.attr :as lat]
             [loom.derived :as ld]
             [clojure.spec.alpha :as s]
-            [describe.core :as d]
-            [clojure.walk :as walk])
+            [clojure.walk :as walk]
+            [clojure.string :as str])
   (:refer-clojure :exclude [empty not=]))
 
 (s/def ::pred ifn?)
@@ -106,7 +106,7 @@
   [x describers & [additional-ctx]]
   (let [ctx (merge additional-ctx {::subject x})]
     (loop [describer-graph (describers->graph describers)
-           descriptions    #{}
+           descriptions    ^:description #{}
            remaining       (la/topsort describer-graph)]
       (if (empty? remaining)
         (if (empty? descriptions)
@@ -157,9 +157,15 @@
 ;; built-in describers
 (defn empty
   [arg]
-  {:pred clojure.core/empty?
+  {:pred empty?
    :args [arg]
    :dscr [::empty]})
+
+(defn blank
+  [arg]
+  {:pred str/blank?
+   :args [arg]
+   :dscr [::blank]})
 
 (defn not=
   ([compare-to]
@@ -217,3 +223,31 @@
    {:pred (complement (partial s/valid? spec))
     :args [arg]
     :dscr [::spec-not-valid spec]}))
+
+;; -----------------
+;; Description rollup
+;; -----------------
+(defn map-rollup-descriptions
+  "Converts set of descriptions to a map roughly reflecting the original
+  map described. Descriptions take the form of:
+
+  #{[:a [::y]]
+    [:a [::z]]
+    [:b [::x]]}
+
+  This returns a map of the form:
+
+  {:a #{::y ::z}
+   :b #{::x}}
+
+  A concession to people who insist that this is about validation and
+  not describing."
+  [descriptions]
+  (walk/postwalk (fn [x]
+                   (if (:description (meta x))
+                     (reduce (fn [rollup [key description]]
+                               (update rollup key (fnil #(conj % description) #{})))
+                             {}
+                             x)
+                     x))
+                 descriptions))

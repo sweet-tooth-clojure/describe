@@ -1,6 +1,10 @@
 (ns examples
   (:require [describe.core :as d]))
 
+;;-----------------
+;; Describer setup
+;;-----------------
+
 (defn username-taken?
   [username db]
   (some #(= username (:username %)) db))
@@ -37,6 +41,10 @@
 
    address-invalid])
 
+;;-----------------
+;; Example describe calls
+;;-----------------
+
 (d/describe {} new-user-describers)
 ;; #{[:address #{[identity [:describe.core/skip]]}]
 ;;   [:username [:describe.core/empty]]
@@ -58,6 +66,10 @@
 ;;   [:password [:examples/passwords-dont-match]]
 ;;   [:password [:examples/no-special-chars]]}
 
+
+;;-----------------
+;; Describer illustrating context
+;;-----------------
 (def encrypt reverse)
 
 (def current-password-incorrect
@@ -70,10 +82,11 @@
   [{password-empty [password-no-special-chars passwords-dont-match]}
    current-password-incorrect])
 
+;; Example of calling a describer with "context"
+;; (:encrypted-existing-password) passed in
 (d/describe {:password "blub"}
             change-password-describer
             {:encrypted-existing-password "blib"})
-
 ;; #{[:password [:examples/passwords-dont-match]]
 ;;   [:current-password [:examples/current-password-incorrect]]
 ;;   [:password [:examples/no-special-chars]]}

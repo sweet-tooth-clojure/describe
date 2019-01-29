@@ -175,6 +175,10 @@
   (is (= #{[:name [::d/empty]]}
          (d/describe {} #{(d/empty :name)}))))
 
+(deftest blank-describer
+  (is (= #{[:name [::d/blank]]}
+         (d/describe {} #{(d/blank :name)}))))
+
 (deftest not=-describer
   (is (= #{[:password [::d/not= :confirmation]]}
          (d/describe {:password "x" :confirmation "y"}
@@ -194,12 +198,12 @@
 
 (deftest spec-explain-data-describer
   (let [spec pos-int?]
-    (is (= [:count [::d/spec-explain-data spec {::s/problems
-                                                [{:path [],
-                                                  :pred 'clojure.core/pos-int?,
-                                                  :val 0,
-                                                  :via [],
-                                                  :in []}],
-                                                ::s/spec spec,
-                                                ::s/value 0}]]
-           (first (d/describe {:count 0} #{(d/spec-explain-data :count spec)}))))))
+    (is (= #{[:count [::d/spec-explain-data spec {::s/problems
+                                                  [{:path [],
+                                                    :pred 'clojure.core/pos-int?,
+                                                    :val 0,
+                                                    :via [],
+                                                    :in []}],
+                                                  ::s/spec spec,
+                                                  ::s/value 0}]]}
+           (d/describe {:count 0} #{(d/spec-explain-data :count spec)})))))
