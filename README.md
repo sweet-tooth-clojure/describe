@@ -4,7 +4,7 @@ Describes data structures. Like validating, but less
 assertive. Milquetoast validator.
 
 ```clj
-[describe "0.1.0"]
+[sweet-tooth/describe "0.1.0"]
 ```
 
 Quick example:

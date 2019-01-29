@@ -1,6 +1,6 @@
-(defproject describe "0.1.0-SNAPSHOT"
+(defproject sweet-tooth/describe "0.1.0-SNAPSHOT"
   :description "Describe data structures"
-  :url "https://github.com/flyingmachine/describe"
+  :url "https://github.com/sweet-tooth-clojure/describe"
   :license {:name "MIT"
             :url  "https://opensource.org/licenses/MIT"}
   :dependencies [[aysylu/loom "1.0.2"]]

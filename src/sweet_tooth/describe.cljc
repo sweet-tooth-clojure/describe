@@ -1,4 +1,4 @@
-(ns describe.core
+(ns sweet-tooth.describe
   (:require [loom.graph :as lg]
             [loom.alg :as la]
             [loom.attr :as lat]
@@ -155,7 +155,6 @@
               (key-describer key-fn [describer]))
             (key-describer (first key-fns) describers)
             (rest key-fns))))
-
 
 ;; built-in describers
 (defn empty

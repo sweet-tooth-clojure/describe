@@ -1,8 +1,9 @@
-(ns describe.core-test
+(ns sweet-tooth.describe-test
   (:require [clojure.test :refer :all]
-            [describe.core :as d]
             [loom.graph :as lg]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+
+            [sweet-tooth.describe :as d]))
 
 (def name-required
   {:pred empty?
