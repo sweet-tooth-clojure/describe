@@ -117,7 +117,10 @@
               updated-describer-graph (cond-> (lat/add-attr describer-graph describer :applied? applies?)
                                         applies? (remove-describer-subgraph describer))]
           (recur updated-describer-graph
-                 (if applies?
+                 ;; skip indicates that the describer doesn't have a
+                 ;; description, but that its subgraph shouldn't be
+                 ;; applied. meant for control flow.
+                 (if (and applies? (clojure.core/not= applies? ::skip))
                    (add-description descriptions describer applies?)
                    descriptions)
                  (->> (rest remaining)
@@ -141,7 +144,7 @@
 (defn key-describer
   "Treats value returned by key-fn as new context that you're applying describers to"
   [key-fn describers]
-  {:pred (fn [key-val ctx] (d/describe key-val describers ctx))
+  {:pred (fn [key-val ctx] (describe key-val describers ctx))
    :args [key-fn identity]})
 
 (defn path-describer
@@ -149,8 +152,8 @@
   [key-fns describers]
   (let [key-fns (reverse key-fns)]
     (reduce (fn [describer key-fn]
-              (d/key-describer key-fn [describer]))
-            (d/key-describer (first key-fns) describers)
+              (key-describer key-fn [describer]))
+            (key-describer (first key-fns) describers)
             (rest key-fns))))
 
 
