@@ -158,20 +158,19 @@
 
 ;; built-in describers
 (defn base-arity
-  [name args describer dscr]
-  [args (cond-> (merge {:args args} describer)
-          dscr (assoc :dscr dscr))])
+  [name args describer]
+  [args (merge {:args args} describer)])
 
 (defmacro defdescriber
-  [name args describer & [dscr]]
+  [name args describer]
   (if (= 1 (count args))
-    `(defn ~name
-       ~@(base-arity name args describer dscr))
-    (let [rest-args (vec (rest args))]
-      `(defn ~name
-         ([~(first args)]
-          (fn ~rest-args (~name ~@args)))
-         (~@(base-arity name args describer dscr))))))
+    (cond-> `(defn ~name
+               (~@(base-arity name args describer))
+               (~(conj args 'dscr)
+                (-> (~name ~@args)
+                    (assoc :dscr ~(quote dscr)))))
+      
+      (> (count args) 1) (conj `([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))))))
 
 (defdescriber empty
   [arg]
