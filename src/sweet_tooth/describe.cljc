@@ -157,74 +157,75 @@
             (rest key-fns))))
 
 ;; built-in describers
-(defn empty
+(defn base-arity
+  [name args describer dscr]
+  [args (cond-> (merge {:args args} describer)
+          dscr (assoc :dscr dscr))])
+
+(defmacro defdescriber
+  [name args describer & [dscr]]
+  (if (= 1 (count args))
+    `(defn ~name
+       ~@(base-arity name args describer dscr))
+    (let [rest-args (vec (rest args))]
+      `(defn ~name
+         ([~(first args)]
+          (fn ~rest-args (~name ~@args)))
+         (~@(base-arity name args describer dscr))))))
+
+(defdescriber empty
   [arg]
   {:pred empty?
-   :args [arg]
    :dscr [::empty]})
 
-(defn blank
+(defdescriber blank
   [arg]
   {:pred str/blank?
-   :args [arg]
    :dscr [::blank]})
 
-(defn not=
-  ([compare-to]
-   (fn [arg] (not= arg compare-to)))
-  ([arg compare-to]
-   {:pred clojure.core/not=
-    :args [arg compare-to]
-    :dscr [::not= compare-to]}))
+(defdescriber not=
+  [arg compare-to]
+  {:pred clojure.core/not=
+   :dscr [::not= compare-to]})
 
-(defn matches
-  ([regex]
-   (fn [arg] (matches arg regex)))
-  ([arg regex]
-   {:pred (partial re-find regex)
-    :args [arg]
-    :dscr [::matches regex]}))
+(defdescriber matches
+  [arg regex]
+  {:pred #(re-find %2 %1)
+   :dscr [::matches regex]})
 
 (defn not-alnum
   [arg]
   (-> (matches arg #"^[a-zA-Z\d]$")
       (assoc :dscr [::not-alnum])))
 
-(defn does-not-match
-  ([regex] (fn [arg] (does-not-match arg regex)))
-  ([arg regex]
-   {:pred (complement (partial re-find regex))
-    :args [arg]
-    :dscr [::does-not-match regex]}))
+(defdescriber does-not-match
+  [arg regex]
+  {:pred #(not (re-find %2 %1))
+   :dscr [::does-not-match regex]})
 
-(defn not-in-range
-  ([m n] (fn [arg] (not-in-range arg m n)))
-  ([arg m n]
-   {:pred #(not (< m % n))
-    :args [arg]
-    :dscr [::not-in-range m n]}))
+(defdescriber not-in-range
+  [arg m n]
+  {:pred #(not (< m % n))
+   :dscr [::not-in-range m n]})
 
-(defn count-not-in-range
-  ([m n] (fn [arg] (count-not-in-range arg m n)))
-  ([arg m n]
-   {:pred #(not (< m (count %) n))
-    :args [arg]
-    :dscr [::count-not-in-range m n]}))
+(defdescriber count-not-in-range
+  [arg m n]
+  {:pred #(not (< m (count %) n))
+   :args [arg]
+   :dscr [::count-not-in-range m n]})
 
-(defn spec-explain-data
-  ([spec] (fn [arg] (spec-explain-data arg spec)))
-  ([arg spec]
-   {:pred (partial s/explain-data spec)
-    :args [arg]
-    :dscr (fn [explanation]
-            [::spec-explain-data spec explanation])}))
+(defdescriber spec-explain-data
+  [arg spec]
+  {:pred (partial s/explain-data spec)
+   :args [arg]
+   :dscr (fn [explanation]
+           [::spec-explain-data spec explanation])})
 
-(defn spec-not-valid
-  ([spec] (fn [arg] (spec-not-valid arg spec)))
-  ([arg spec]
-   {:pred (complement (partial s/valid? spec))
-    :args [arg]
-    :dscr [::spec-not-valid spec]}))
+(defdescriber spec-not-valid
+  [arg spec]
+  {:pred (complement (partial s/valid? spec))
+   :args [arg]
+   :dscr [::spec-not-valid spec]})
 
 ;; -----------------
 ;; Description rollup
