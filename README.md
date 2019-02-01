@@ -7,10 +7,35 @@ assertive. Milquetoast validator.
 [sweet-tooth/describe "0.1.0"]
 ```
 
-Quick example:
+## Quick example
 
 ```clojure
+(defn username-taken?
+  [username db]
+  (some #(= username (:username %)) db))
 
+(def username-empty (d/empty :username))
+(def username-invalid-length (d/count-not-in-range :username 6 24))
+(def username-not-alnum (d/not-alnum :username))
+(def username-taken
+  {:pred username-taken?
+   :args [:username (d/context :db)]
+   :dscr [::username-taken]})
+
+(def new-user-describers
+  [[username-empty username-invalid-length username-taken]
+   [username-empty username-not-alnum username-taken]])
+
+(d/describe {} new-user-describers)
+;; #{[:username [:describe.core/empty]]}
+
+(d/describe {:username "b3"} new-user-describers)
+;; #{[:username [:describe.core/count-not-in-range 6 24]]}
+
+(d/describe {:username "bubba56"}
+            new-user-describers
+            {:db [{:username "bubba56"}]})
+;; #{[:username [:examples/username-taken]]} 
 ```
 
 ## What makes describe so special???

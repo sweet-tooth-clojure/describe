@@ -89,7 +89,9 @@
          :or   {dscr identity
                 args [identity]}} describer
         description (if (fn? dscr) (dscr result) dscr)]
-    (conj descriptions [(or as (first args)) description])))
+    (if-not (= [::ignore] description)
+      (conj descriptions [(or as (first args)) description])
+      descriptions)))
 
 (defn remove-describer-subgraph
   "Remove all downstream subscribers so that we don't attempt to apply
@@ -117,10 +119,10 @@
               updated-describer-graph (cond-> (lat/add-attr describer-graph describer :applied? applies?)
                                         applies? (remove-describer-subgraph describer))]
           (recur updated-describer-graph
-                 ;; skip indicates that the describer doesn't have a
+                 ;; ignore indicates that the describer doesn't have a
                  ;; description, but that its subgraph shouldn't be
                  ;; applied. meant for control flow.
-                 (if (and applies? (clojure.core/not= applies? ::skip))
+                 (if applies?
                    (add-description descriptions describer applies?)
                    descriptions)
                  (->> (rest remaining)
@@ -163,14 +165,13 @@
 
 (defmacro defdescriber
   [name args describer]
-  (if (= 1 (count args))
-    (cond-> `(defn ~name
-               (~@(base-arity name args describer))
-               (~(conj args 'dscr)
-                (-> (~name ~@args)
-                    (assoc :dscr ~(quote dscr)))))
-      
-      (> (count args) 1) (conj `([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))))))
+  (cond-> `(defn ~name
+             (~@(base-arity name args describer))
+             (~(conj args 'dscr)
+              (-> (~name ~@args)
+                  (assoc :dscr ~(quote dscr)))))
+    
+    (> (count args) 1) (concat `[([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))])))
 
 (defdescriber empty
   [arg]

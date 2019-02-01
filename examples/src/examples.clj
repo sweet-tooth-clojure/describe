@@ -1,5 +1,5 @@
 (ns examples
-  (:require [describe.core :as d]))
+  (:require [sweet-tooth.describe :as d]))
 
 ;;-----------------
 ;; Describer setup
@@ -23,15 +23,15 @@
 (def password-no-special-chars (-> (d/does-not-match :password #"[^a-zA-Z\d\s:]")
                                    (assoc :dscr [::no-special-chars])))
 
-(def skip-when-empty
+(def ignore-when-empty
   {:pred empty?
    :args [identity]
-   :dscr [::d/skip]})
+   :dscr [::d/ignore]})
 
 (def street-empty (d/empty :street))
 (def city-empty (d/empty :city))
 (def address-invalid
-  (d/key-describer :address #{{skip-when-empty [street-empty city-empty]}}))
+  (d/key-describer :address #{{ignore-when-empty [street-empty city-empty]}}))
 
 (def new-user-describers
   [[username-empty username-invalid-length username-taken]
@@ -46,14 +46,18 @@
 ;;-----------------
 
 (d/describe {} new-user-describers)
-;; #{[:address #{[identity [:describe.core/skip]]}]
-;;   [:username [:describe.core/empty]]
+;; #{[:username [:describe.core/empty]]
 ;;   [:password [:describe.core/empty]]}
 
 (d/describe {:username "b3"} new-user-describers)
-;; #{[:address #{[identity [:describe.core/skip]]}]
-;;   [:username [:describe.core/count-not-in-range 6 24]]
+;; #{[:username [:describe.core/count-not-in-range 6 24]]
 ;;   [:password [:describe.core/empty]]}
+
+(d/describe {:username "bubba56"}
+            new-user-describers
+            {:db [{:username "bubba56"}]})
+;; #{[:username [:examples/username-taken]]
+;;   [:password [:sweet-tooth.describe/empty]]}
 
 (d/describe {:address {:street "street"}} new-user-describers)
 ;; #{[:address #{[:city [:describe.core/empty]]}]
@@ -61,8 +65,7 @@
 ;;   [:password [:describe.core/empty]]}
 
 (d/describe {:password "x"} new-user-describers)
-;; #{[:address #{[identity [:describe.core/skip]]}]
-;;   [:username [:describe.core/empty]]
+;; #{[:username [:describe.core/empty]]
 ;;   [:password [:examples/passwords-dont-match]]
 ;;   [:password [:examples/no-special-chars]]}
 
