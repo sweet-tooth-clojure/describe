@@ -38,22 +38,31 @@ assertive. Milquetoast validator.
 ;; #{[:username [:examples/username-taken]]} 
 ```
 
+If you're using describe to validate data, then you can treat the
+presence of a description to mean the value is invalid.
+
 ## What makes describe so special???
 
 There are already many Clojure validation libraries. My favorites are
 [vlad](https://github.com/logaan/vlad) and
 [bouncer](https://github.com/leonardoborges/bouncer).
 
-describe has two features that set it apart: It uses a graph to
-structure describers (_validators_, if you must insist), giving you
-more control over their application; and you can pass in other values
-to use when describing a value. You might want to do the latter if,
-for example, you want to check if a username exists in a datomic
-database.
+describe has two features that set it apart: First, it uses a graph to
+structure describers (_validators_, if you must insist), allowing you
+to determine the control flow of your describers. If a username is too
+short, you don't want to perform the costlier operation of checking
+whether it exists. Likewise if the username contains invalid
+characters. At the same time, if the username is both too short and
+contains invalid characters, you want to convey both these errors to
+the user.
+
+Second, you can pass in other values to use when describing a
+value. You might want to do the latter if, for example, you want to
+check if a username exists in a datomic database.
 
 ### Describer Graph
 
-TODO: greedy vs. non-greedy
+You can structure describers like this:
 
 ```
   B
@@ -92,7 +101,31 @@ from the parent describer.
 
 ### Description context
 
+Sometimes validating input requires comparing it to data outside the
+input. A common usecase is to check whether a username is
+taken. Here's how you could do that with describe:
 
+```clojure
+(defn username-taken?
+  [username db]
+  (some #(= username (:username %)) db))
+  
+(def username-taken
+  {:pred username-taken?
+   :args [:username (d/context :db)]
+   :dscr [::username-taken]})
+
+(d/describe {:username "bubba56"}
+            new-user-describers
+            {:db [{:username "bubba56"}]})
+;; #{[:username [:examples/username-taken]]} 
+```
+
+The call to `describe` takes the following arguments:
+
+1. The value to be described
+2. A set of describers
+3. An optional context
 
 ## Usage
 
