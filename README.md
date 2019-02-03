@@ -92,16 +92,19 @@ Here's some code to give you an idea of how you would use describe:
    [username-empty username-not-alnum username-taken]])
 
 (d/describe {} new-user-describers)
-;; #{[:username [:describe.core/empty]]}
+;; =>
+#{[:username [:describe.core/empty]]}
 
 (d/describe {:username "b3!"} new-user-describers)
-;; #{[:username [:describe.core/count-not-in-range 6 24]]
-;;   [:username [:sweet-tooth.describe/not-alnum]]}
+;; =>
+#{[:username [:describe.core/count-not-in-range 6 24]]
+  [:username [:sweet-tooth.describe/not-alnum]]}
 
 (d/describe {:username "bubba56"}
             new-user-describers
             {:db [{:username "bubba56"}]})
-;; #{[:username [:examples/username-taken]]} 
+;; =>
+#{[:username [:examples/username-taken]]} 
 ```
 
 (Note for the observant, `describe` returns values like `#{[:username
@@ -111,7 +114,7 @@ before you can association validation messages with invalid values.)
 If you're using describe to validate data, then you can treat the
 presence of a description to mean the value is invalid.
 
-## Tutorial
+# Tutorial
 
 * Overview
 * The `describe` function
@@ -121,7 +124,7 @@ presence of a description to mean the value is invalid.
 * Creating a describer graph
 * Rolling up values
 
-### Overview
+## Overview
 
 You use the `sweet-tooth.describe/describe` function to _describe_
 some value. To describe a value is to apply a set of predicate
@@ -130,7 +133,7 @@ is added to a set of descriptions which will constitute `describe`'s
 return value. The following sections will cover all the details of
 writing predications an descriptions.
 
-### The `describe` function
+## The `describe` function
 
 The `describe` function takes three arguments:
 
@@ -151,7 +154,7 @@ you pass in a map, then the describers should be written to handle a
 map. If you pass in a sequential value, then the describers should be
 written to handle a sequential value, and so on.
 
-### Writing describers
+## Writing describers
 
 A describer is a map with three keys:
 
@@ -175,10 +178,12 @@ Here's a simple example:
    :dscr [::username-empty]})
 
 (d/describe {:username "hurmp"} #{username-empty})
-;; nil
+;; =>
+nil
 
 (d/describe {:username nil} #{username-empty})
-;; #{[:username [::username-empty]]}
+;; =>
+#{[:username [::username-empty]]}
 ```
 
 Here we're first describing the valaue `{:username "hurmp"}` using the
@@ -194,7 +199,7 @@ descriptions. A description is a vector of two elements, an identifier
 (`:username`) and details (`[::username-empty]`). The details are
 specified with the `:dscr` key of the describer.
 
-#### `:args`
+### `:pred`, `:args`, and `:dscr`
 
 Above I said that `:args` is "a vector of functions that supply
 arguments to the predicate function." In the previous example, you
@@ -217,7 +222,8 @@ Check this out:
    :dscr [::missing-keys]})
 
 (d/describe {:username "hurmp"} #{missing-keys})
-;; #{[#function[clojure.core/identity] [:examples/missing-keys]]}
+;; =>
+#{[#function[clojure.core/identity] [:examples/missing-keys]]}
 ```
 
 We want to apply this describer to a map as a whole; we don't want it
@@ -226,16 +232,25 @@ to apply to any particular key. Therefore, the first element in
 function. The second argument `(constantly [:a :b :c])`, yields the
 keys that we want to check for. We have to wrap the vector `[:a :b
 :c]` because it implements `IFn`, and `describe` would try to call the
-vector as a function with `{:username "hurmp"}` as its argument.
+vector as a function with `{:username "hurmp"}` as its argument. It's
+as if you wrote this:
 
-The description is funky:
+```clojure
+(let [to-describe {:username "hurmp"}
+      pred        #(empty? (select-keys %1 %2))]
+  (pred (identity to-describe) ((constantly [:a :b :c]) to-describe)))
+```
+
+### Customizing the description
+
+The description returned in the previous example is funky:
 
 ```clojure
 [#function[clojure.core/identity] [:examples/missing-keys]]
 ```
 
 The identifier (first element of the description vector) is the
-function `identity`. This is because, by defaul, describe uses the
+function `identity`. This is because, by default, describe uses the
 first element in `args` as the identifier. You can specify your own
 identifier with `:as`:
 
@@ -246,10 +261,47 @@ identifier with `:as`:
    :dscr [::missing-keys]})
 
 (d/describe {:username "hurmp"} #{missing-keys})
-;; #{[:entire-map [:examples/missing-keys]]}
+; => 
+#{[:entire-map [:examples/missing-keys]]}
 ```
 
-### Describer Graph
+If you want to spice things up even more, you can also provide a
+function for description details. That function should take one
+argument, which will be the return value of the predicate
+function. For example, you could take advantage of this feature to
+write a describer that includes the return value of clojure.spec's
+`explain-data`:
+
+```clojure
+(:require '[clojure.spec.alpha :as s])
+
+(s/def ::username string?)
+
+(def username-explain-data
+  {:pred (partial s/explain-data ::username)
+   :args [:username]
+   :dscr (fn [explanation]
+           [::username-explan-data explanation])})
+
+(d/describe {:username 3} #{username-explain-data})
+; => 
+#{[:username
+   [:examples/username-explan-data
+    #:clojure.spec.alpha{:problems
+                         [{:path [],
+                           :pred clojure.core/string?,
+                           :val 3,
+                           :via [:examples/username],
+                           :in []}],
+                         :spec :examples/username,
+                         :value 3}]]}
+```
+
+### `context`
+
+
+
+## Describer Graph
 
 You can structure describers like this:
 

@@ -1,5 +1,6 @@
 (ns examples
-  (:require [sweet-tooth.describe :as d]))
+  (:require [sweet-tooth.describe :as d]
+            [clojure.spec.alpha :as s]))
 
 ;;-----------------
 ;; Describer setup
@@ -93,3 +94,18 @@
 ;; #{[:password [:examples/passwords-dont-match]]
 ;;   [:current-password [:examples/current-password-incorrect]]
 ;;   [:password [:examples/no-special-chars]]}
+
+(let [to-describe {:username "hurmp"}
+      pred        #(empty? (select-keys %1 %2))]
+  (pred (identity to-describe) ((constantly [:a :b :c]) to-describe)))
+
+
+(:require '[clojure.spec.alpha :as s])
+
+(s/def ::username string?)
+
+(def username-explain-data
+  {:pred (partial s/explain-data ::username)
+   :args [:username]
+   :dscr (fn [explanation]
+           [::username-explan-data explanation])})
