@@ -18,8 +18,8 @@ There are plenty of libraries to perform validation, like
 [schema](https://github.com/plumatic/schema),
 [vlad](https://github.com/logaan/vlad), and
 [bouncer](https://github.com/leonardoborges/bouncer). Why would I, a
-human being with hopes and dreams and needs presumably better things
-to do, bother to write another one?
+human being with hopes and dreams and presumably better things to do,
+bother to write another one?
 
 There are three things I want in a validation library that I, in all
 my travels on this earth, have not found in one package:
@@ -65,7 +65,8 @@ describe is built to accommodate this kind of scenario. It's still a
 baby, and just as I plan to treat my own eventual human babies, I've
 already put it to work but I don't expect it to be perfect. In
 particular, describe is more verbose than spec or vlad. If that
-doesn't appeal to you, I think vlad is another good option.
+doesn't appeal to you, [vlad](https://github.com/logaan/vlad) is
+another good option.
 
 ## Quick example
 
@@ -93,11 +94,11 @@ Here's some code to give you an idea of how you would use describe:
 
 (d/describe {} new-user-describers)
 ;; =>
-#{[:username [:describe.core/empty]]}
+#{[:username [:sweet-tooth.describe/empty]]}
 
 (d/describe {:username "b3!"} new-user-describers)
 ;; =>
-#{[:username [:describe.core/count-not-in-range 6 24]]
+#{[:username [:sweet-tooth.describe/count-not-in-range 6 24]]
   [:username [:sweet-tooth.describe/not-alnum]]}
 
 (d/describe {:username "bubba56"}
@@ -109,7 +110,8 @@ Here's some code to give you an idea of how you would use describe:
 
 (Note for the observant, `describe` returns values like `#{[:username
 [:examples/username-taken]]}`, which obviously need to be transformed
-before you can association validation messages with invalid values.)
+before you can associate validation messages with invalid values. The
+function `map-rollup-descriptions` helps with this.)
 
 If you're using describe to validate data, then you can treat the
 presence of a description to mean the value is invalid.
