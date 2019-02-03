@@ -195,7 +195,7 @@
 
 (defn not-alnum
   [arg]
-  (-> (matches arg #"^[a-zA-Z\d]$")
+  (-> (matches arg #"[^a-zA-Z\d\s:]")
       (assoc :dscr [::not-alnum])))
 
 (defdescriber does-not-match
