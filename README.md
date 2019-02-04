@@ -212,8 +212,24 @@ value being described, `{:username "hurmp"}`. Pass the return value,
 `"hurmp"`, to the predicate function `empty?`.
 
 Since `:args` is a vector of functions, you can have predicate
-functions that take more than value. You also have to take extra care
-when you want to pass in an argument that can be treated as a function.
+functions that take more than value. One place you'd want to use this
+is when validating that `:password` and `:password-confirmation`
+fields match:
+
+```clojure
+(def passwords-dont-match
+  {:pred not=
+   :args [:password :password-confirmation]
+   :dscr [::passwords-dont-match]})
+   
+(d/describe {:password "secure" :password-confirmation "$ecure"}
+            #{passwords-dont-match})
+;; =>
+#{[:password [:examples/passwords-dont-match]]}
+```
+
+You need to take extra care when you want to pass in an argument that
+can be treated as a function.
 
 Check this out:
 
@@ -301,9 +317,41 @@ write a describer that includes the return value of clojure.spec's
 
 ### `context`
 
+Sometimes validating input requires comparing it to data outside the
+input. A common usecase is to check whether a username is
+taken. Here's how you could do that with describe:
 
+```clojure
+(defn username-taken?
+  [username db]
+  (some #(= username (:username %)) db))
+  
+(def username-taken
+  {:pred username-taken?
+   :args [:username (d/context :db)]
+   :dscr [::username-taken]})
+
+(d/describe {:username "bubba56"}
+            new-user-describers
+            {:db [{:username "bubba56"}]})
+;; #{[:username [:examples/username-taken]]} 
+```
+
+`describe`'s third argument is the _context_. You can supply any value
+you want here, but it probably makes sense to pass in a map - in this
+case, we're passing in `{:db [{:username "bubba56"}]}`. Describers can
+access the context by using the `context` function, which you can see
+with `:args [:username (d/context :db)]`. Hopefully you can see how
+the context value is threaded from the call to `describe`, through the
+`context` function in `:args`, and finally passed to the predicate
+function `username-taken?`.
+
+`context` takes one argument, a function to apply to the context; the
+return value is passed to the predicate function.
 
 ## Describer Graph
+
+### The graph determines control flow
 
 You can structure describers like this:
 
@@ -342,33 +390,75 @@ Describers form a directed graph, and the application of any describer
 prevents the application of all describers in the subgraph reachable
 from the parent describer.
 
-### Description context
+### Representing graphs
 
-Sometimes validating input requires comparing it to data outside the
-input. A common usecase is to check whether a username is
-taken. Here's how you could do that with describe:
+The second argument to `describe` is a sequence (preferably a vector
+or set for readability) representing a graph of describers. Graph
+syntax is as follows, with arrows representing directed edges in a
+digraph.
+
+**Directed edges.** This set contains two vectors. Each vector
+represents two nodes, with a directed edge from the first to the
+second. This establishes control flow such that if describer A's
+predicate returns true, then its description will be applied and
+`describe` will not attempt to apply B or C.
 
 ```clojure
-(defn username-taken?
-  [username db]
-  (some #(= username (:username %)) db))
-  
-(def username-taken
-  {:pred username-taken?
-   :args [:username (d/context :db)]
-   :dscr [::username-taken]})
-
-(d/describe {:username "bubba56"}
-            new-user-describers
-            {:db [{:username "bubba56"}]})
-;; #{[:username [:examples/username-taken]]} 
+#{[A B] [A C]}
+;; => A → B, A → C
 ```
 
-The call to `describe` takes the following arguments:
+**Two nodes pointing at one node.** The data structure below describes
+a graph where both B and C are pointing at A. If either B or C
+applies, describe will not attempt to apply A.
 
-1. The value to be described
-2. A set of describers
-3. An optional context
+```clojure
+#{[B A] [C A] D}
+;; => B → A, C → A
+```
+
+**Unconnected nodes.** Describe will always attempt to apply
+unconnected nodes.
+
+```clojure
+#{A}
+```
+
+**Maps as digraphs.** Maps of the form `{A [B C ...]}` will form a
+digraph where A points to B, C, etc.
+
+```clojure
+#{{A [B C]}}
+;; => A → B, A → C
+```
+
+**Vectors as hierarchy.** A vector of `[A B C]` forms a digraph such
+that A points to B and B points to C. If A is applied, describe will
+not attempt to apply B or C.
+
+```clojure
+#{[A B C]}
+;; => A → B → C
+```
+
+In the very first example at the top of this README, we saw a graph
+defined like this:
+
+```clojure
+(def new-user-describers
+  [[username-empty username-invalid-length username-taken]
+   [username-empty username-not-alnum username-taken]])
+```
+
+This results in the following graph:
+
+```
+                 username-invalid-length
+               ↗                         ↘
+username-empty                             username-taken
+               ↘                         ↗
+                 username-not-alnum
+```
 
 ## License
 
