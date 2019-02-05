@@ -257,8 +257,8 @@ the keys that we want to check for. We have to wrap keywords because
 (let [to-describe {:username "hurmp"}
       pred        #(empty? (select-keys %1 %&))]
   (pred (identity to-describe)
-        ((constantly [:a]) to-describe)
-        ((constantly [:b]) to-describe)))
+        ((constantly :a) to-describe)
+        ((constantly :b) to-describe)))
 ```
 
 ### Customizing the description
@@ -276,8 +276,8 @@ identifier with `:as`:
 
 ```clojure
 (def missing-keys-custom-identifier
-  {:pred #(empty? (select-keys %1 %2))
-   :args [identity (constantly [:a :b :c])]
+  {:pred #(empty? (select-keys %1 %&))
+   :args [identity (constantly :a) (constantly :b)]
    :dscr [::missing-keys]})
 
 (d/describe {:username "hurmp"} #{missing-keys})
