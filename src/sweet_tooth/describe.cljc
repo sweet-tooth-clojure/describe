@@ -153,7 +153,7 @@
   "Treats value returned by key-fn as new context that you're applying describers to"
   [key-fn describers]
   {:pred (fn [key-val ctx] (describe key-val describers ctx))
-   :args [key-fn identity]})
+   :args [key-fn (context identity)]})
 
 (defn path-describer
   "Nested key describers"
@@ -295,4 +295,3 @@
                       (assoc x 1 (translate-description x translations))
                       x))
                   descriptions)))
-

@@ -125,10 +125,14 @@ presence of a description to mean the value is invalid.
 * Overview
 * The `describe` function
 * Writing describers
-  * pred, args, dscr
+  * pred, aergs, dscr
+  * customizing the description
   * context
 * Creating a describer graph
-* Rolling up values
+* Nested maps (experimental)
+* Map rollup (experimental)
+* Translation
+* Seqs
 
 ## Overview
 
@@ -489,11 +493,91 @@ username-empty                             username-taken
 
 ## Nested maps (experimental)
 
+Sometimes you want to validate nested maps? Check it:
+
+```clojure
+(def street-empty (d/empty :street))
+(def city-empty (d/empty :city))
+(def address-invalid
+  (d/key-describer :address #{street-empty city-empty}))
+
+(d/describe {:address {:street "street"}} new-user-describers)
+; =>
+#{[:address #{[:city [:describe.core/empty]]}]}
+```
+
+Using `key-describer`, we define a set of describers to apply to the
+value associated with `:address`. The description for `:address` is a
+set of descriptions. Indeed, the implementation for `key-describer`
+recursively calls `describe` in its predicate function:
+
+```clojure
+(defn key-describer
+  "Treats value returned by key-fn as new subject that you're applying describers to"
+  [key-fn describers]
+  {:pred (fn [key-val ctx] (describe key-val describers ctx))
+   :args [key-fn (context identity)]})
+```
+
+Is this a good idea? Who knows?
+
+You can also use `path-describer` for nested maps:
+
+```clojure
+(d/describe {:person {:address {}}}
+            [(d/path-describer [:person :address] [street-empty city-empty])])
+;; =>
+#{[:person
+   #{[:address
+      #{[:city ::d/empty]
+        [:street ::d/empty]}]}]}
+```
+
+It looks like it'd be difficult to relate the descriptions back to the
+original map. That's where `map-rollup-descriptions` comes in...
+
+**NOTE:** I would looooove suggestions on how to do this better :)
+
 ## Map rollup (experimental)
+
+`map-rollup-descriptions` will create maps where it's possible:
+
+```clojure
+(d/map-rollup-descriptions
+  (d/describe {:person {:address {}}}
+              [(d/path-describer [:person :address] [street-empty city-empty])]))
+
+;; =>
+{:person
+ #{{:address
+    #{{:city #{::d/empty}
+       :street #{::d/empty}}}}}}
+
+;; compare to the un-rolled-up-version:
+#{[:person
+   #{[:address
+      #{[:city ::d/empty]
+        [:street ::d/empty]}]}]}
+```
+
+The value associated with `:person` is a set with one member, a map
+with the `:address` key. `:address`'s value is also a set with one
+member, the map `#{:city ::d/empty, :street ::d/empty}`.
+
+This is in keeping with describe's feature of enabling multiple
+descriptions per keyword. It lets you, for example, associate multiple
+descriptions with `:city`: you could describe it with both "contains
+non-alphanumeric text" and "must be less than 500 characters". It's a
+bit unwieldy, though, and I'd love ideas for improvements.
 
 ## Translation
 
+TODO: explain how to use translation to transform values like
+`[::d/empty]` or `[::d/not-in-range 6 24]` into user-friendly text.
+
 ## Seqs
+
+TODO: explain `map-describe`.
 
 # Contributing
 
