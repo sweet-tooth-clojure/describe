@@ -9,10 +9,11 @@
 Describes data structures. Like validating, but less
 assertive. Milquetoast validator. Still in its infancy.
 
-Novel? Interesting? I hope so - stick around if you'd like to help
-work together to figure out a new approach to validation (or please
-tell me it's done better elsewhere so I can use that and stop working
-on this).
+Novel? Interesting? I hope so - I'm releasing this because I think
+this approach to validation is new and somewhat fun to think about,
+and I'd love to find some people to think about it with me (or at
+least tell me it's done better elsewhere so I can use that and stop
+working on this). I hope that's you!
 
 ```clj
 [sweet-tooth/describe "0.1.0"]
@@ -195,7 +196,7 @@ Here we're first describing the valaue `{:username "hurmp"}` using the
 `empty?`, and `empty?` is applied to the value returned by
 `:username` - in this case, `"hurmp"`. Since the predicate function
 returns false, no description is applied, and when no descriptions are
-applied `describe` returns false.
+applied `describe` returns `nil`.
 
 Next we describe `{:username nil}`. Since `empty?` returns true, we
 add a description, `[:username [::username-empty]]`, to a set of
