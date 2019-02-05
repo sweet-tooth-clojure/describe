@@ -53,16 +53,18 @@
   "Describer args come in four flavors:
   * A function wrapped with `context`. This resolves by applying
     the fn to the context.
-  * An ifn with the `:const` keyword in metadata. This resolves to itself.
-  * An ifn. This resolves by being applied to the subject (the thing being described).
+  * A fn with the `:const` keyword in metadata. This resolves to itself.
+  * A keyword or fn. This resolves by being applied to the subject (the thing being described).
   * Something else. This resolves to itself."
   [ctx args]
   (reduce (fn [resolved arg]
             (let [arg-meta (meta arg)]
-              (conj resolved (cond (::ctx arg-meta)  (arg ctx)
-                                   (:const arg-meta) arg
-                                   (ifn? arg)        (arg (::subject ctx))
-                                   :else             arg))))
+              (conj resolved (cond (::ctx arg-meta)    (arg ctx)
+                                   (:const arg-meta)   arg
+                                   (or (fn? arg)
+                                       (keyword? arg)) (arg (::subject ctx))
+                                   
+                                   :else arg))))
           []
           args))
 

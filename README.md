@@ -228,15 +228,13 @@ fields match:
 #{[:password [:examples/passwords-dont-match]]}
 ```
 
-You need to take extra care when you want to pass in an argument that
-can be treated as a function.
-
-Check this out:
+You need to take extra care when you want to pass in a keyword as a
+constant. Check this out:
 
 ```clojure
 (def missing-keys
-  {:pred #(empty? (select-keys %1 %2))
-   :args [identity (constantly [:a :b :c])]
+  {:pred #(empty? (select-keys %1 %&))
+   :args [identity (constantly :a) (constantly :b)]
    :dscr [::missing-keys]})
 
 (d/describe {:username "hurmp"} #{missing-keys})
@@ -247,16 +245,17 @@ Check this out:
 We want to apply this describer to a map as a whole; we don't want it
 to apply to any particular key. Therefore, the first element in
 `:args` is `identity` - this passes in the entire map to the predicate
-function. The second argument `(constantly [:a :b :c])`, yields the
-keys that we want to check for. We have to wrap the vector `[:a :b
-:c]` because it implements `IFn`, and `describe` would try to call the
-vector as a function with `{:username "hurmp"}` as its argument. It's
-as if you wrote this:
+function. The arguments `(constantly :a)` and `(constantly :b)` yield
+the keys that we want to check for. We have to wrap keywords because
+`describe` would tries to call the keywords as functions with
+`{:username "hurmp"}` as their argument. It's as if you wrote this:
 
 ```clojure
 (let [to-describe {:username "hurmp"}
-      pred        #(empty? (select-keys %1 %2))]
-  (pred (identity to-describe) ((constantly [:a :b :c]) to-describe)))
+      pred        #(empty? (select-keys %1 %&))]
+  (pred (identity to-describe)
+        ((constantly [:a]) to-describe)
+        ((constantly [:b]) to-describe)))
 ```
 
 ### Customizing the description
