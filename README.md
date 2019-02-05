@@ -7,13 +7,17 @@
 ## About describe
 
 Describes data structures. Like validating, but less
-assertive. Milquetoast validator.
+assertive. Milquetoast validator. Still in its infancy.
+
+Novel? Interesting? I hope so - stick around if you'd like to help me
+work out a new approach to validation (or please tell me it's done
+better elsewhere so I can use that and stop working on this).
 
 ```clj
 [sweet-tooth/describe "0.1.0"]
 ```
 
-There are plenty of libraries to perform validation, like
+Plenty of validation libraries already exist, like
 [spec](https://clojure.org/guides/spec),
 [schema](https://github.com/plumatic/schema),
 [vlad](https://github.com/logaan/vlad), and
@@ -36,7 +40,7 @@ validations:
 * _UEMPTY_: username is empty
 * _UCOUNT_: username is too long or short
 * _UCHAR_: username contains invalid character
-* _UTAKEN_: username is already taken
+* _UTAKEN_: username is already taken (compare db, an external value)
 
 The control for these validations looks like this:
 
@@ -63,7 +67,7 @@ to convey both these errors to the user.
 
 describe is built to accommodate this kind of scenario. It's still a
 baby, and just as I plan to treat my own eventual human babies, I've
-already put it to work but I don't expect it to be perfect. In
+already put it to work but I'm not getting my hopes up yet. In
 particular, describe is more verbose than other libraries. If that
 doesn't appeal to you, [vlad](https://github.com/logaan/vlad) is
 another good option.
@@ -415,11 +419,11 @@ a digraph.
 ;; => A → B, A → C
 ```
 
-This set contains two vectors. Each vector
-represents two nodes, with a directed edge from the first to the
-second. This establishes control flow such that if describer A's
-predicate returns true, then its description will be applied and
-`describe` will not attempt to apply B or C.
+This set contains two vectors. Each vector represents two nodes, with
+a directed edge from the first to the second. This establishes control
+flow such that if describer A's predicate returns true, then its
+description will be applied and `describe` will not attempt to apply B
+or C.
 
 **Two nodes pointing at one node.** 
 
@@ -428,9 +432,9 @@ predicate returns true, then its description will be applied and
 ;; => B → A, C → A
 ```
 
-The data structure below describes
-a graph where both B and C are pointing at A. If either B or C
-applies, describe will not attempt to apply A.
+The data structure below describes a graph where both B and C are
+pointing at A. If either B or C applies, describe will not attempt to
+apply A.
 
 **Unconnected nodes.** 
 
@@ -462,10 +466,10 @@ points to C. If A is applied, describe will not attempt to apply B or
 C.
 
 **Don't get too fancy.** If you want to create a complex graph, don't
-try to get too fancy by having deeply-nested vectors and
-maps. Sometimes this will require you to write the same node multiple
-times so that you can specify all of its edges. In the very first
-example at the top of this README, we saw a graph defined like this:
+try to get too fancy by having deeply-nested vectors and maps.
+Sometimes this will require you to write the same node multiple times
+so that you can specify all of its edges. In the very first example at
+the top of this README, we saw a graph defined like this:
 
 ```clojure
 (def new-user-describers
@@ -483,15 +487,15 @@ username-empty                             username-taken
                  username-not-alnum
 ```
 
-## Nested maps
+## Nested maps (experimental)
 
-## Map rollup
-
-## Seqs
+## Map rollup (experimental)
 
 ## Translation
 
-## Contributing
+## Seqs
+
+# Contributing
 
 I am not the world's best open source project maintainer. It often
 takes me weeks or months to respond to issues, PRs, and other
@@ -502,7 +506,7 @@ this be better? Is something broken? What am I missing? Please do open
 issues and PRs with your ideas. Thank you in advance for deciding to
 engage with someone as lacking in joie de maintainership as myself!
 
-## License
+# License
 
 Copyright © 2019 Daniel Higginbotham
 
