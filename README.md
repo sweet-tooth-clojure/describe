@@ -9,9 +9,10 @@
 Describes data structures. Like validating, but less
 assertive. Milquetoast validator. Still in its infancy.
 
-Novel? Interesting? I hope so - stick around if you'd like to help me
-work out a new approach to validation (or please tell me it's done
-better elsewhere so I can use that and stop working on this).
+Novel? Interesting? I hope so - stick around if you'd like to help
+work together to figure out a new approach to validation (or please
+tell me it's done better elsewhere so I can use that and stop working
+on this).
 
 ```clj
 [sweet-tooth/describe "0.1.0"]
