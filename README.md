@@ -136,7 +136,7 @@ some value. To describe a value is to apply a set of predicate
 functions to it. For each predicate that returns true, a _description_
 is added to a set of descriptions which will constitute `describe`'s
 return value. The following sections will cover all the details of
-writing predications an descriptions.
+writing predicates and descriptions.
 
 ## The `describe` function
 
