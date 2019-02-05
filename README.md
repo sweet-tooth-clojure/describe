@@ -42,7 +42,7 @@ validations:
 * _UCHAR_: username contains invalid character
 * _UTAKEN_: username is already taken (compare db, an external value)
 
-The control for these validations looks like this:
+The control flow for these validations looks like this:
 
 ```
          UCOUNT
@@ -57,13 +57,6 @@ validations. If UEMPTY does not apply, attempt UCOUNT and UCHAR; it's
 possible for both of these to apply to the username. If either UCOUNT
 or UCHAR applies, don't apply UTAKEN so that you don't waste time
 performing an unnecessary DB call."
-
-If a username is empty, there's no point checking its length or if it
-has invalid characters. If a username is too short, you don't want to
-perform the costlier operation of checking whether it exists. Likewise
-if the username contains invalid characters. At the same time, if the
-username is both too short and contains invalid characters, you want
-to convey both these errors to the user.
 
 describe is built to accommodate this kind of scenario. It's still a
 baby, and just as I plan to treat my own eventual human babies, I've
