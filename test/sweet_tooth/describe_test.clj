@@ -208,3 +208,19 @@
                                                   ::s/spec spec,
                                                   ::s/value 0}]]}
            (d/describe {:count 0} #{(d/spec-explain-data :count spec)})))))
+
+;; -----------------
+;; rollup
+;; -----------------
+(deftest nested-map-rollup
+  (is (= {:person
+          #{{:address
+             #{{:city #{"cannot be empty"}
+                :street #{"cannot be empty"}}}}}}
+         (d/map-rollup-descriptions
+           (d/describe {:person {:address {}}}
+                       [(d/path-describer [:person :address] [street-required city-required])])))))
+
+;; -----------------
+;; traslation
+;; -----------------

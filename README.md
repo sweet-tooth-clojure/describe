@@ -64,7 +64,7 @@ to convey both these errors to the user.
 describe is built to accommodate this kind of scenario. It's still a
 baby, and just as I plan to treat my own eventual human babies, I've
 already put it to work but I don't expect it to be perfect. In
-particular, describe is more verbose than spec or vlad. If that
+particular, describe is more verbose than other libraries. If that
 doesn't appeal to you, [vlad](https://github.com/logaan/vlad) is
 another good option.
 
@@ -351,6 +351,12 @@ return value is passed to the predicate function.
 
 ## Describer Graph
 
+`describe`'s second argument takes a data structure that represents a
+graph, and that graph is used to control when `describe` should
+attempt to apply a describer. The next couple sections explain the
+relationship between the describer graph and control flow, and how to
+define a describer graph.
+
 ### The graph determines control flow
 
 You can structure describers like this:
@@ -393,56 +399,74 @@ from the parent describer.
 ### Representing graphs
 
 The second argument to `describe` is a sequence (preferably a vector
-or set for readability) representing a graph of describers. Graph
-syntax is as follows, with arrows representing directed edges in a
-digraph.
+or set for readability) representing a graph of describers. Here, the
+set `#{username-empty}` is transformed into a graph with a single node:
 
-**Directed edges.** This set contains two vectors. Each vector
-represents two nodes, with a directed edge from the first to the
-second. This establishes control flow such that if describer A's
-predicate returns true, then its description will be applied and
-`describe` will not attempt to apply B or C.
+```clojure
+(d/describe {:username "hurmp"} #{username-empty})
+```
+
+Graph syntax is as follows, with arrows representing directed edges in
+a digraph.
+
+**Directed edges.** 
 
 ```clojure
 #{[A B] [A C]}
 ;; => A → B, A → C
 ```
 
-**Two nodes pointing at one node.** The data structure below describes
-a graph where both B and C are pointing at A. If either B or C
-applies, describe will not attempt to apply A.
+This set contains two vectors. Each vector
+represents two nodes, with a directed edge from the first to the
+second. This establishes control flow such that if describer A's
+predicate returns true, then its description will be applied and
+`describe` will not attempt to apply B or C.
+
+**Two nodes pointing at one node.** 
 
 ```clojure
 #{[B A] [C A] D}
 ;; => B → A, C → A
 ```
 
-**Unconnected nodes.** Describe will always attempt to apply
-unconnected nodes.
+The data structure below describes
+a graph where both B and C are pointing at A. If either B or C
+applies, describe will not attempt to apply A.
+
+**Unconnected nodes.** 
 
 ```clojure
 #{A}
 ```
 
-**Maps as digraphs.** Maps of the form `{A [B C ...]}` will form a
-digraph where A points to B, C, etc.
+Describe will always attempt to apply unconnected nodes.
+
+**Maps as digraphs.** 
 
 ```clojure
 #{{A [B C]}}
 ;; => A → B, A → C
 ```
 
-**Vectors as hierarchy.** A vector of `[A B C]` forms a digraph such
-that A points to B and B points to C. If A is applied, describe will
-not attempt to apply B or C.
+Maps of the form `{A [B C ...]}` will form a digraph where A points to
+B, C, etc.
+
+**Vectors as hierarchy.**
 
 ```clojure
 #{[A B C]}
 ;; => A → B → C
 ```
 
-In the very first example at the top of this README, we saw a graph
-defined like this:
+A vector of `[A B C]` forms a digraph such that A points to B and B
+points to C. If A is applied, describe will not attempt to apply B or
+C.
+
+**Don't get too fancy.** If you want to create a complex graph, don't
+try to get too fancy by having deeply-nested vectors and
+maps. Sometimes this will require you to write the same node multiple
+times so that you can specify all of its edges. In the very first
+example at the top of this README, we saw a graph defined like this:
 
 ```clojure
 (def new-user-describers
@@ -459,6 +483,25 @@ username-empty                             username-taken
                ↘                         ↗
                  username-not-alnum
 ```
+
+## Nested maps
+
+## Map rollup
+
+## Seqs
+
+## Translation
+
+## Contributing
+
+I am not the world's best open source project maintainer. It often
+takes me weeks or months to respond to issues, PRs, and other
+pro-social forms of communication. I apologize for this shortcoming.
+
+That being said, I _do_ very much appreciate any feedback: how could
+this be better? Is something broken? What am I missing? Please do open
+issues and PRs with your ideas. Thank you in advance for deciding to
+engage with someone as lacking in joie de maintainership as myself!
 
 ## License
 

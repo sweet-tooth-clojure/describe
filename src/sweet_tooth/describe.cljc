@@ -5,7 +5,8 @@
             [loom.derived :as ld]
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [sweet-tooth.describe :as d])
   (:refer-clojure :exclude [empty not=]))
 
 (s/def ::pred ifn?)
@@ -89,8 +90,11 @@
          :or   {dscr identity
                 args [identity]}} describer
         description (if (fn? dscr) (dscr result) dscr)]
+    ;; ::ignore is used for control flow to allow describers to
+    ;; indicate that the subgraph should not be applied, but the
+    ;; current describer's description shouldn't be aded
     (if-not (= [::ignore] description)
-      (conj descriptions [(or as (first args)) description])
+      (conj descriptions ^:description [(or as (first args)) description])
       descriptions)))
 
 (defn remove-describer-subgraph
@@ -108,7 +112,7 @@
   [x describers & [additional-ctx]]
   (let [ctx (merge additional-ctx {::subject x})]
     (loop [describer-graph (describers->graph describers)
-           descriptions    ^:description #{}
+           descriptions    ^:descriptions #{}
            remaining       (la/topsort describer-graph)]
       (if (empty? remaining)
         (if (empty? descriptions)
@@ -195,7 +199,7 @@
 
 (defn not-alnum
   [arg]
-  (-> (matches arg #"^[a-zA-Z\d]$")
+  (-> (matches arg #"[^a-zA-Z\d]")
       (assoc :dscr [::not-alnum])))
 
 (defdescriber does-not-match
@@ -247,10 +251,46 @@
   not describing."
   [descriptions]
   (walk/postwalk (fn [x]
-                   (if (:description (meta x))
+                   (if (:descriptions (meta x))
                      (reduce (fn [rollup [key description]]
                                (update rollup key (fnil #(conj % description) #{})))
                              {}
                              x)
                      x))
                  descriptions))
+;; -----------------
+;; translation
+;; -----------------
+
+(def default-translations
+  {::d/empty              "is required"
+   ::d/blank              "is required"
+   ::d/not=               "does not match its confirmation"
+   ::d/matches            (fn [regex] (str "matches #\"" regex "\" but shouldn't"))
+   ::d/not-alnum          "contains non-alphanumeric characters"
+   ::d/does-not-match     (fn [regex] (str "does not match #\"" regex "\""))
+   ::d/not-in-range       (fn [m n] (str "is not between " m " and " n))
+   ::d/count-not-in-range (fn [m n] (str "length is not between " m " and " n))
+   ::d/spec-explain-data  "is not valid"
+   ::d/spec-not-valid     "is not valid"})
+
+(defn translate-description
+  [[arg dscr] translations]
+  (let [dscr-key (if (sequential? dscr)
+                   (first dscr)
+                   dscr)
+        translation (get translations dscr-key dscr)]
+    (if (fn? translation)
+      (apply translation (rest dscr))
+      translation)))
+
+(defn translate
+  ([descriptions]
+   (translate default-translations descriptions))
+  ([translations descriptions]
+   (walk/postwalk (fn [x]
+                    (if (:description (meta x))
+                      (assoc x 1 (translate-description x translations))
+                      x))
+                  descriptions)))
+
