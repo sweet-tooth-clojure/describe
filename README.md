@@ -16,7 +16,7 @@ least tell me it's done better elsewhere so I can use that and stop
 working on this). I hope that's you!
 
 ```clj
-[sweet-tooth/describe "0.1.0"]
+[sweet-tooth/describe "0.2.0"]
 ```
 
 Plenty of validation libraries already exist, like
@@ -87,21 +87,21 @@ Here's some code to give you an idea of how you would use describe:
    :args [:username (d/context :db)]
    :dscr [::username-taken]})
 
-(def new-user-describers
+(def new-user-rules
   [[username-empty username-invalid-length username-taken]
    [username-empty username-not-alnum username-taken]])
 
-(d/describe {} new-user-describers)
+(d/describe {} new-user-rules)
 ;; =>
 #{[:username [:sweet-tooth.describe/empty]]}
 
-(d/describe {:username "b3!"} new-user-describers)
+(d/describe {:username "b3!"} new-user-rules)
 ;; =>
 #{[:username [:sweet-tooth.describe/count-not-in-range 6 24]]
   [:username [:sweet-tooth.describe/not-alnum]]}
 
 (d/describe {:username "bubba56"}
-            new-user-describers
+            new-user-rules
             {:db [{:username "bubba56"}]})
 ;; =>
 #{[:username [:examples/username-taken]]} 
@@ -119,11 +119,11 @@ presence of a description to mean the value is invalid.
 
 * Overview
 * The `describe` function
-* Writing describers
+* Writing rules
   * pred, aergs, dscr
   * customizing the description
   * context
-* Creating a describer graph
+* Creating a rule graph
 * Nested maps (experimental)
 * Map rollup (experimental)
 * Translation
@@ -143,25 +143,25 @@ writing predicates and descriptions.
 The `describe` function takes three arguments:
 
 * The value to be described
-* A graph of describers
+* A graph of rules
 * An optional context
 
 You call it like this:
 
 ```clojure
 (d/describe {:blub :dub}               ; thing described
-            #{describer-1 describer-2} ; set of describers
+            #{rule-1 rule-2} ; set of rules
             {:optional :context})      ; optional context
 ```
 
 The first argument doesn't have to be a map, it can be any value. If
-you pass in a map, then the describers should be written to handle a
-map. If you pass in a sequential value, then the describers should be
+you pass in a map, then the rules should be written to handle a
+map. If you pass in a sequential value, then the rules should be
 written to handle a sequential value, and so on.
 
-## Writing describers
+## Writing rules
 
-A describer is a map with three keys:
+A rule is a map with three keys:
 
 * `:pred`, a predicate function that determines whether the
   description should be applied
@@ -192,7 +192,7 @@ nil
 ```
 
 Here we're first describing the valaue `{:username "hurmp"}` using the
-`username-empty` describer. `username-empty`'s predicate function is
+`username-empty` rule. `username-empty`'s predicate function is
 `empty?`, and `empty?` is applied to the value returned by
 `:username` - in this case, `"hurmp"`. Since the predicate function
 returns false, no description is applied, and when no descriptions are
@@ -202,13 +202,13 @@ Next we describe `{:username nil}`. Since `empty?` returns true, we
 add a description, `[:username [::username-empty]]`, to a set of
 descriptions. A description is a vector of two elements, an identifier
 (`:username`) and details (`[::username-empty]`). The details are
-specified with the `:dscr` key of the describer.
+specified with the `:dscr` key of the rule.
 
 ### `:pred`, `:args`, and `:dscr`
 
 Above I said that `:args` is "a vector of functions that supply
 arguments to the predicate function." In the previous example, you
-applied a describer to the map `{:username "hurmp"}`. The describer's
+applied a rule to the map `{:username "hurmp"}`. The rule's
 predicate function was `empty?`, and the `:args` vector contained
 `:username`. This specifies, "call `:username` as a function on the
 value being described, `{:username "hurmp"}`. Pass the return value,
@@ -245,7 +245,7 @@ constant. Check this out:
 #{[#function[clojure.core/identity] [:examples/missing-keys]]}
 ```
 
-We want to apply this describer to a map as a whole; we don't want it
+We want to apply this rule to a map as a whole; we don't want it
 to apply to any particular key. Therefore, the first element in
 `:args` is `identity` - this passes in the entire map to the predicate
 function. The arguments `(constantly :a)` and `(constantly :b)` yield
@@ -289,7 +289,7 @@ If you want to spice things up even more, you can also provide a
 function for description details. That function should take one
 argument, which will be the return value of the predicate
 function. For example, you could take advantage of this feature to
-write a describer that includes the return value of clojure.spec's
+write a rule that includes the return value of clojure.spec's
 `explain-data`:
 
 ```clojure
@@ -334,14 +334,14 @@ taken. Here's how you could do that with describe:
    :dscr [::username-taken]})
 
 (d/describe {:username "bubba56"}
-            new-user-describers
+            new-user-rules
             {:db [{:username "bubba56"}]})
 ;; #{[:username [:examples/username-taken]]} 
 ```
 
 `describe`'s third argument is the _context_. You can supply any value
 you want here, but it probably makes sense to pass in a map - in this
-case, we're passing in `{:db [{:username "bubba56"}]}`. Describers can
+case, we're passing in `{:db [{:username "bubba56"}]}`. Rules can
 access the context by using the `context` function, which you can see
 with `:args [:username (d/context :db)]`. Hopefully you can see how
 the context value is threaded from the call to `describe`, through the
@@ -351,17 +351,17 @@ function `username-taken?`.
 `context` takes one argument, a function to apply to the context; the
 return value is passed to the predicate function.
 
-## Describer Graph
+## Rule Graph
 
 `describe`'s second argument takes a data structure that represents a
 graph, and that graph is used to control when `describe` should
-attempt to apply a describer. The next couple sections explain the
-relationship between the describer graph and control flow, and how to
-define a describer graph.
+attempt to apply a rule. The next couple sections explain the
+relationship between the rule graph and control flow, and how to
+define a rule graph.
 
 ### The graph determines control flow
 
-You can structure describers like this:
+You can structure rules like this:
 
 ```
   B
@@ -371,13 +371,13 @@ A
   C
 ```
 
-Which means, _If the describer A is applied, don't apply B or C. If A
+Which means, _If the rule A is applied, don't apply B or C. If A
 is not applied, then it's possible for B and C to both apply._ You
-could use this when describing passwords: The _A_ describer would
+could use this when describing passwords: The _A_ rule would
 check whether the password exists. If it does, then _B_ would check
 its length and _C_ would check whether it contains special characters.
 
-You can also structure describers like this:
+You can also structure rules like this:
 
 ```
 A
@@ -394,14 +394,14 @@ special characters. _C_ would check whether the username exists. Since
 that involves a database operation, we don't want to perform it unless
 we know that it's a valid username.
 
-Describers form a directed graph, and the application of any describer
-prevents the application of all describers in the subgraph reachable
-from the parent describer.
+Rules form a directed graph, and the application of any rule
+prevents the application of all rules in the subgraph reachable
+from the parent rule.
 
 ### Representing graphs
 
 The second argument to `describe` is a sequence (preferably a vector
-or set for readability) representing a graph of describers. Here, the
+or set for readability) representing a graph of rules. Here, the
 set `#{username-empty}` is transformed into a graph with a single node:
 
 ```clojure
@@ -420,7 +420,7 @@ a digraph.
 
 This set contains two vectors. Each vector represents two nodes, with
 a directed edge from the first to the second. This establishes control
-flow such that if describer A's predicate returns true, then its
+flow such that if rule A's predicate returns true, then its
 description will be applied and `describe` will not attempt to apply B
 or C.
 
@@ -471,7 +471,7 @@ so that you can specify all of its edges. In the very first example at
 the top of this README, we saw a graph defined like this:
 
 ```clojure
-(def new-user-describers
+(def new-user-rules
   [[username-empty username-invalid-length username-taken]
    [username-empty username-not-alnum username-taken]])
 ```
@@ -494,33 +494,33 @@ Sometimes you want to validate nested maps? Check it:
 (def street-empty (d/empty :street))
 (def city-empty (d/empty :city))
 (def address-invalid
-  (d/key-describer :address #{street-empty city-empty}))
+  (d/key-rule :address #{street-empty city-empty}))
 
-(d/describe {:address {:street "street"}} new-user-describers)
+(d/describe {:address {:street "street"}} new-user-rules)
 ; =>
 #{[:address #{[:city [:describe.core/empty]]}]}
 ```
 
-Using `key-describer`, we define a set of describers to apply to the
+Using `key-rule`, we define a set of rules to apply to the
 value associated with `:address`. The description for `:address` is a
-set of descriptions. Indeed, the implementation for `key-describer`
+set of descriptions. Indeed, the implementation for `key-rule`
 recursively calls `describe` in its predicate function:
 
 ```clojure
-(defn key-describer
-  "Treats value returned by key-fn as new subject that you're applying describers to"
-  [key-fn describers]
-  {:pred (fn [key-val ctx] (describe key-val describers ctx))
+(defn key-rule
+  "Treats value returned by key-fn as new subject that you're applying rules to"
+  [key-fn rules]
+  {:pred (fn [key-val ctx] (describe key-val rules ctx))
    :args [key-fn (context identity)]})
 ```
 
 Is this a good idea? Who knows?
 
-You can also use `path-describer` for nested maps:
+You can also use `path-rule` for nested maps:
 
 ```clojure
 (d/describe {:person {:address {}}}
-            [(d/path-describer [:person :address] [street-empty city-empty])])
+            [(d/path-rule [:person :address] [street-empty city-empty])])
 ;; =>
 #{[:person
    #{[:address
@@ -540,7 +540,7 @@ original map. That's where `map-rollup-descriptions` comes in...
 ```clojure
 (d/map-rollup-descriptions
   (d/describe {:person {:address {}}}
-              [(d/path-describer [:person :address] [street-empty city-empty])]))
+              [(d/path-rule [:person :address] [street-empty city-empty])]))
 
 ;; =>
 {:person

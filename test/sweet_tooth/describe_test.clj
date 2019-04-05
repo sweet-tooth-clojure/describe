@@ -44,7 +44,7 @@
    :args [:password]
    :dscr "must include non-alphanumeric character"})
 
-(def describers
+(def rules
   (let [nne name-required]
     #{{password-required [passwords-match password-complexity]}
       [nne name-length name-unique]
@@ -72,12 +72,12 @@
   (is (nil? (d/describe {:name         "birf"
                          :password     "abc"
                          :confirmation "abc"}
-                        describers))))
+                        rules))))
 
 (deftest basic-describe
   (is (= #{[:password "please supply a password"]
            [:name "cannot be empty"]}
-         (d/describe {} describers))))
+         (d/describe {} rules))))
 
 (deftest conditional-description
   (is (= #{[:name "must be between 4 and 10 characters"]
@@ -85,7 +85,7 @@
          (d/describe {:name         "bir"
                       :password     "abc"
                       :confirmation "abcd"}
-                     describers))))
+                     rules))))
 
 (deftest handles-context
   (is (= #{[:name "that name is taken"]}
@@ -111,8 +111,8 @@
    :args [:city]
    :dscr "cannot be empty"})
 
-(def address-describer
-  (d/key-describer :address [street-required city-required]))
+(def address-rule
+  (d/key-rule :address [street-required city-required]))
 
 (def address-description
   #{[:address #{[:street "cannot be empty"] [:city "cannot be empty"]}]})
@@ -121,14 +121,14 @@
 
 (deftest handle-nested-map
   (is (= address-description
-         (d/describe {} [address-describer]))))
+         (d/describe {} [address-rule]))))
 
 (deftest handle-undescribed-nested-map
-  (is (nil? (d/describe address [address-describer]))))
+  (is (nil? (d/describe address [address-rule]))))
 
 (deftest handle-seq
   (is (= [address-description nil address-description]
-         (d/map-describe [address-describer]
+         (d/map-describe [address-rule]
                          [{} address {}]))))
 
 (deftest handle-scalar-seq
@@ -140,23 +140,24 @@
   {:pred (fn [city db] (not (some #(= % city) db)))
    :args [:city (d/context :db)]})
 
-(def address-city-describer
-  (d/key-describer :address [city-doesnt-exist?]))
+(def address-city-rule
+  (d/key-rule :address [city-doesnt-exist?]))
 
-(deftest key-describers-pass-context
-  (is (= #{[:address #{[:city true]}]}
-         (d/describe address
-                     [address-city-describer]
-                     {:db ["y"]}))))
+(deftest key-rules-pass-context
+  (testing "key rules can take a predicate that reads the context, and the context from the root `describe` will be passed"
+    (is (= #{[:address #{[:city true]}]}
+           (d/describe address
+                       [address-city-rule]
+                       {:db ["ferp"]})))))
 
-(def addresses-describer
-  {:pred #(d/map-describe [address-describer] %)
+(def addresses-rule
+  {:pred #(d/map-describe [address-rule] %)
    :args [:addresses]})
 
 (deftest handle-nested-seq
   (is (= #{[:addresses [address-description nil address-description]]}
          (d/describe {:addresses [{} address {}]}
-                     [addresses-describer]))))
+                     [addresses-rule]))))
 
 (deftest handle-nested-map
   (is (= #{[:person
@@ -164,40 +165,40 @@
                #{[:city "cannot be empty"]
                  [:street "cannot be empty"]}]}]}
          (d/describe {:person {:address {}}}
-                     [(d/key-describer :person [address-describer])])
+                     [(d/key-rule :person [address-rule])])
          (d/describe {:person {:address {}}}
-                     [(d/path-describer [:person :address] [street-required city-required])]))))
+                     [(d/path-rule [:person :address] [street-required city-required])]))))
 
 ;; -----------------
-;; built in describers
+;; built in rules
 ;; -----------------
 
-(deftest empty-describer
+(deftest empty-rule
   (is (= #{[:name [::d/empty]]}
          (d/describe {} #{(d/empty :name)}))))
 
-(deftest blank-describer
+(deftest blank-rule
   (is (= #{[:name [::d/blank]]}
          (d/describe {} #{(d/blank :name)}))))
 
-(deftest not=-describer
+(deftest not=-rule
   (is (= #{[:password [::d/not= :confirmation]]}
          (d/describe {:password "x" :confirmation "y"}
                      #{(d/not= :password :confirmation)}))))
 
-(deftest matches-describer
+(deftest matches-rule
   (let [regex #"bib"]
     (is (= #{[:name [::d/matches regex]]}
            (d/describe {:name "bibbitt"}
                        #{(d/matches :name regex)})))))
 
-(deftest does-not-match-describer
+(deftest does-not-match-rule
   (let [regex #"[0-9]"]
     (is (= #{[:name [::d/does-not-match regex]]}
            (d/describe {:name "bibbitt"}
                        #{(d/does-not-match :name regex)})))))
 
-(deftest spec-explain-data-describer
+(deftest spec-explain-data-rule
   (let [spec pos-int?]
     (is (= #{[:count [::d/spec-explain-data spec {::s/problems
                                                   [{:path [],
@@ -219,7 +220,7 @@
                 :street #{"cannot be empty"}}}}}}
          (d/map-rollup-descriptions
            (d/describe {:person {:address {}}}
-                       [(d/path-describer [:person :address] [street-required city-required])])))))
+                       [(d/path-rule [:person :address] [street-required city-required])])))))
 
 ;; -----------------
 ;; traslation

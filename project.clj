@@ -1,4 +1,4 @@
-(defproject sweet-tooth/describe "0.1.0"
+(defproject sweet-tooth/describe "0.2.0"
   :description "Describe data structures"
   :url "https://github.com/sweet-tooth-clojure/describe"
   :license {:name "MIT"
