@@ -6,7 +6,8 @@
             [clojure.spec.alpha :as s]
             [clojure.walk :as walk]
             [clojure.string :as str])
-  (:refer-clojure :exclude [empty not=]))
+  (:refer-clojure :exclude [empty not=])
+  #?(:cljs (:require-macros [sweet-tooth.describe :refer [defrule]])))
 
 (s/def ::pred ifn?)
 (s/def ::args seqable?)
@@ -62,14 +63,14 @@
                                    (:const arg-meta)   arg
                                    (or (fn? arg)
                                        (keyword? arg)) (arg (::subject ctx))
-                                   
+
                                    :else arg))))
           []
           args))
 
 (defn rule-applies?
   "Apply the predicate function to args."
-  [ctx rule-graph rule]
+  [ctx _rule-graph rule]
   (let [{:keys [pred args]
          :or   {args [identity]}} rule]
     (apply pred (resolve-args ctx args))))
@@ -80,7 +81,9 @@
   (if (lg/graph? rules)
     (if (lg/directed? rules)
       rules
-      (throw (AssertionError. "when rules is a graph, it must be a digraph")))
+      (throw (#?(:clj AssertionError.
+                 :cljs js/Error.)
+               "when rules is a graph, it must be a digraph")))
     (graph rules)))
 
 (defn add-description
@@ -162,21 +165,20 @@
             (key-rule (first key-fns) rules)
             (rest key-fns))))
 
-;; built-in rules
-(defn base-arity
-  [name args rule]
+(defn- base-arity
+  "used to construct a rule"
+  [args rule]
   [args (merge {:args args} rule)])
 
-(defmacro defrule
-  [name args rule]
-  (cond-> `(defn ~name
-             (~@(base-arity name args rule))
-             (~(conj args 'dscr)
-              (-> (~name ~@args)
-                  (assoc :dscr ~(quote dscr)))))
-    
-    (> (count args) 1) (concat `[([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))])))
+#?(:clj (defmacro defrule [name args rule]
+          (cond-> `(defn ~name
+                     (~@(base-arity args rule))
+                     (~(conj args 'dscr)
+                      (-> (~name ~@args)
+                          (assoc :dscr ~(quote dscr)))))
+            (> (count args) 1) (concat `[([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))]))))
 
+;; built-in rules
 (defrule empty
   [arg]
   {:pred empty?
@@ -275,7 +277,7 @@
    ::spec-not-valid     "is not valid"})
 
 (defn translate-description
-  [[arg dscr] translations]
+  [[_arg dscr] translations]
   (let [dscr-key (if (sequential? dscr)
                    (first dscr)
                    dscr)

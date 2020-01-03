@@ -1,8 +1,8 @@
 (ns sweet-tooth.describe-test
-  (:require [clojure.test :refer :all]
+  (:require #?(:clj [clojure.test :refer [deftest is testing]]
+               :cljs [cljs.test :refer-macros [deftest is testing]])
             [loom.graph :as lg]
             [clojure.spec.alpha :as s]
-
             [sweet-tooth.describe :as d]))
 
 (def name-required
@@ -119,10 +119,6 @@
 
 (def address {:address {:street "x" :city "y"}})
 
-(deftest handle-nested-map
-  (is (= address-description
-         (d/describe {} [address-rule]))))
-
 (deftest handle-undescribed-nested-map
   (is (nil? (d/describe address [address-rule]))))
 
@@ -202,7 +198,7 @@
   (let [spec pos-int?]
     (is (= #{[:count [::d/spec-explain-data spec {::s/problems
                                                   [{:path [],
-                                                    :pred 'clojure.core/pos-int?,
+                                                    :pred `pos-int?,
                                                     :val 0,
                                                     :via [],
                                                     :in []}],

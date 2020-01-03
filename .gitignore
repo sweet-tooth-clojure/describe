@@ -10,3 +10,5 @@ pom.xml.asc
 /.idea
 /*.iml
 notes.org
+out
+.clj-kondo/.cache
