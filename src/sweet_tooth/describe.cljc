@@ -211,12 +211,12 @@
 
 (defrule not-in-range
   [arg m n]
-  {:pred #(not (< m % n))
+  {:pred #(not (<= m % n))
    :dscr [::not-in-range m n]})
 
 (defrule count-not-in-range
   [arg m n]
-  {:pred #(not (< m (count %) n))
+  {:pred #(not (<= m (count %) n))
    :args [arg]
    :dscr [::count-not-in-range m n]})
 

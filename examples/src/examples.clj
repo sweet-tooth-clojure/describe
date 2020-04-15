@@ -32,7 +32,7 @@
 (def street-empty (d/empty :street))
 (def city-empty (d/empty :city))
 (def address-invalid
-  (d/key-describer :address #{{ignore-when-empty [street-empty city-empty]}}))
+  (d/key-rule :address #{{ignore-when-empty [street-empty city-empty]}}))
 
 (def new-user-describers
   [[username-empty username-invalid-length username-taken]

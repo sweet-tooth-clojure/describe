@@ -16,7 +16,7 @@ least tell me it's done better elsewhere so I can use that and stop
 working on this). I hope that's you!
 
 ```clj
-[sweet-tooth/describe "0.2.0"]
+[sweet-tooth/describe "0.4.0"]
 ```
 
 Plenty of validation libraries already exist, like
