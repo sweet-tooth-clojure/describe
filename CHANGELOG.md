@@ -2,19 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](http://keepachangelog.com)
-and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](http://keepachangelog.com).
 
 
-## [Unreleased]
+## [0.4.1] 2012-11-27
+
 ### Added
-- _CHANGELOG.md_ created.
-### Changed
-- Something has been changed.
-### Fixed
-- Something has been fixed.
-### Removed
-- Something has been removed.
 
+- New built-in rules, `truthy` and `falsey`
 
 [Unreleased]: https://github.com/flyingmachine/describe/compare/0.0.0...HEAD

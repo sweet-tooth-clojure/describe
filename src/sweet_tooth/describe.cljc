@@ -114,17 +114,17 @@
 (defn describe
   [x rules & [additional-ctx]]
   (let [ctx (merge additional-ctx {::subject x})]
-    (loop [rule-graph (rules->graph rules)
-           descriptions    ^:descriptions #{}
-           remaining       (la/topsort rule-graph)]
+    (loop [rule-graph   (rules->graph rules)
+           descriptions ^:descriptions #{}
+           remaining    (la/topsort rule-graph)]
       (if (empty? remaining)
         (if (empty? descriptions)
           nil
           descriptions)
         (let [rule               (first remaining)
-              applies?                (rule-applies? ctx rule-graph rule)
+              applies?           (rule-applies? ctx rule-graph rule)
               updated-rule-graph (cond-> (lat/add-attr rule-graph rule :applied? applies?)
-                                        applies? (remove-rule-subgraph rule))]
+                                   applies? (remove-rule-subgraph rule))]
           (recur updated-rule-graph
                  ;; ignore indicates that the rule doesn't have a
                  ;; description, but that its subgraph shouldn't be
@@ -179,6 +179,16 @@
             (> (count args) 1) (concat `[([~(first args)] (fn ~(vec (rest args)) (~name ~@args)))]))))
 
 ;; built-in rules
+(defrule truthy
+  [arg]
+  {:pred identity
+   :dscr [::truthy]})
+
+(defrule falsey
+  [arg]
+  {:pred not
+   :dscr [::falsey]})
+
 (defrule empty
   [arg]
   {:pred empty?
