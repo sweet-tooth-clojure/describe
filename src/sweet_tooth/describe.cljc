@@ -101,12 +101,31 @@
       (conj descriptions ^:description [(or as (first args)) description])
       descriptions)))
 
+;; copied from loom.graph to work around its bizarre cljs (:in g) issue
+(defn- remove-adj-nodes [m nodes adjacents remove-fn]
+  (reduce
+   (fn [m n]
+     (if (m n)
+       (update-in m [n] #(apply remove-fn % nodes))
+       m))
+   (apply dissoc m nodes)
+   adjacents))
+
+(defn remove-nodes
+  [g nodes]
+  (let [ins (mapcat #(lg/predecessors g %) nodes)
+        outs (mapcat #(lg/successors g %) nodes)]
+    (-> g
+        (update-in [:nodeset] #(apply disj % nodes))
+        (assoc :adj (remove-adj-nodes (:adj g) nodes ins disj))
+        (assoc :in (remove-adj-nodes (:in g) nodes outs disj)))))
+
 (defn remove-rule-subgraph
   "Remove all downstream rules so that we don't attempt to apply them"
   [rule-graph rule]
   (->> (ld/subgraph-reachable-from rule-graph rule)
        lg/nodes
-       (apply lg/remove-nodes rule-graph)))
+       (remove-nodes rule-graph)))
 
 ;; -----------------
 ;; Perform description
